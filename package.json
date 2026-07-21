@@ -2,6 +2,24 @@
   "name": "teply-krug",
   "private": true,
   "version": "1.0.0",
+  "description": "A host-controlled Russian conversation game for warm Zoom evenings.",
+  "license": "MIT",
+  "homepage": "https://kiku-jw.github.io/teply-krug/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiku-jw/teply-krug.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kiku-jw/teply-krug/issues"
+  },
+  "keywords": [
+    "conversation-game",
+    "icebreaker",
+    "zoom-game",
+    "local-first",
+    "github-pages",
+    "typescript"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

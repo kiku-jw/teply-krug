@@ -1,33 +1,90 @@
-# Тёплый круг
+<p align="center">
+  <img src="public/favicon.svg" width="88" height="88" alt="Знак игры Тёплый круг">
+</p>
 
-A host-controlled Russian conversation game for 6-12 young Jehovah's Witnesses meeting on Zoom. The host enters names, shares one screen, and guides the group through three stages of questions and light improvisation.
+<h1 align="center">Тёплый круг</h1>
 
-## Product boundaries
+<p align="center">
+  <strong>Один экран. Один круг. Много настоящих разговоров.</strong><br>
+  Ведущий вводит имена, включает демонстрацию в Zoom и помогает компании стать ближе за один вечер.
+</p>
 
-- 360 original Russian cards, balanced across three stages and five categories.
-- Round-robin turns, soft timer, and five one-use social abilities.
-- No scoring, accounts, backend, analytics, Zoom integration, or stored answers.
-- Names, seen-card history, settings, and custom cards stay in the host browser.
-- The project is independent and is not an official Jehovah's Witnesses product.
+<p align="center">
+  <a href="https://kiku-jw.github.io/teply-krug/"><img alt="Открыть игру" src="https://img.shields.io/badge/Открыть_игру-F6BD67?style=for-the-badge&logo=github&logoColor=17130D"></a>
+  <a href="https://github.com/kiku-jw/teply-krug/actions/workflows/pages.yml"><img alt="GitHub Pages" src="https://github.com/kiku-jw/teply-krug/actions/workflows/pages.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-17243A?style=flat-square"></a>
+</p>
 
-## Development
+<p align="center">
+  <a href="https://kiku-jw.github.io/teply-krug/">
+    <img src="docs/media/welcome.png" alt="Стартовый экран игры Тёплый круг" width="100%">
+  </a>
+</p>
 
-Requires Node.js 22.
+## Как проходит вечер
+
+1. Ведущий добавляет от 6 до 12 имён в порядке ходов.
+2. Все видят один экран через демонстрацию в Zoom.
+3. Игрок открывает вопрос, отвечает или использует разовую способность.
+4. После полного круга группа решает: сыграть ещё или перейти к следующему этапу.
+
+Никаких очков, победителей и неловких рейтингов. Цель игры — услышать друг друга.
+
+## Три мягких этапа
+
+| Этап | Настроение |
+| --- | --- |
+| **Искра** | Лёгкие вопросы, улыбки и короткие истории |
+| **Ближе** | То, что помогает увидеть человека глубже |
+| **Вместе** | Импровизация, командные задания и тёплое завершение |
+
+В колоде 360 вручную написанных карточек: о человеке, дружбе, Библии, служении и творческих заданиях. Вопросы не повторяются, пока не закончится подходящая часть колоды.
+
+## Игровой экран
+
+<p align="center">
+  <img src="docs/media/game.png" alt="Игровой ход с открытым вопросом, таймером и способностями" width="100%">
+</p>
+
+У каждого участника есть гарантированная «Перезагрузка» вопроса и две случайные социальные способности: позвать напарника, выбрать один из двух вопросов, попросить совет круга или выбрать тему.
+
+## Сделано для ведущего
+
+- Мягкий таймер на 45, 75 или 120 секунд — он никогда не переключает игрока автоматически.
+- Редактор собственных карточек прямо в браузере.
+- Возможность скрыть любую встроенную карточку и позже вернуть её.
+- Автоматическое восстановление активной игры после перезагрузки страницы.
+- Адаптивный интерфейс для большого Zoom-экрана, ноутбука и телефона.
+
+## Приватность
+
+Это полностью статическое приложение без аккаунтов, сервера и аналитики. Ответы участников нигде не вводятся и не сохраняются. Имена, настройки и пользовательские карточки остаются только в браузере ведущего.
+
+Проект независимый и не является официальным продуктом Свидетелей Иеговы.
+
+## Локальный запуск
+
+Понадобится Node.js 22.
 
 ```bash
 npm install
 npm run dev
+```
+
+Полная проверка перед публикацией:
+
+```bash
 npm run check
 npm exec playwright install chromium
 npm run test:e2e
 ```
 
-The Vite base path is `/teply-krug/`. A push to `main` builds and publishes `dist/` through the official GitHub Pages actions.
+Проект собран на Vite и TypeScript без UI-фреймворков. Push в `main` проверяет проект и публикует `dist/` через GitHub Actions.
 
-## Content model
+## Работа с колодой
 
-Built-in cards live in `src/content/cards.ts`. Each stage/category pair contains 24 explicitly authored prompts. Custom cards are validated at the browser boundary and are never committed or uploaded.
+Встроенные карточки находятся в [`src/content/cards.ts`](src/content/cards.ts). В каждой паре «этап × категория» ровно 24 явно написанных вопроса. Пользовательские карточки проходят проверку на границе `localStorage` и никогда не отправляются в репозиторий.
 
-## License
+## Лицензия
 
-Code and original card text are available under the MIT License.
+Код и оригинальные тексты карточек распространяются по [лицензии MIT](LICENSE).
