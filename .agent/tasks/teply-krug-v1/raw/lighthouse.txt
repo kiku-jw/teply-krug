@@ -1,0 +1,9 @@
+Lighthouse against the production Vite preview
+
+performance:    100
+accessibility:  100
+best-practices: 100
+seo:            100
+LCP:            1.1 s
+CLS:            0
+TBT:            0 ms

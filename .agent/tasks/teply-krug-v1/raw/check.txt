@@ -1,0 +1,7 @@
+npm run check
+
+Test Files  3 passed (3)
+Tests       12 passed (12)
+TypeScript  PASS
+Vite build PASS
+Bundle      JS 79.11 kB raw / 21.13 kB gzip; CSS 27.95 kB raw / 6.76 kB gzip

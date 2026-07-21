@@ -1,0 +1,6 @@
+git diff --check: PASS
+npm audit --audit-level=high: 0 vulnerabilities
+TypeScript assertion scan: no `as`, `any`, ts-ignore, or ts-expect-error in source/tests
+Secret-pattern scan: no credential material; only expected GitHub workflow id-token permission
+Visible-copy dash scan: no em dash or en dash in runtime content
+Runtime assets: local bundle and local favicon only

@@ -1,0 +1,7 @@
+npm run test:e2e
+
+Projects: desktop Chromium 1280x720; mobile Chromium 390x844 touch viewport
+Tests:    19 passed, 1 intentionally skipped viewport-only duplicate
+Covered:  6-player start, 12-player circle, stage transition, reload persistence,
+          all five abilities, custom-card editing, built-in hiding, visual captures,
+          and mobile horizontal-overflow assertion.
