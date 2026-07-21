@@ -1,6 +1,6 @@
 {
   "taskId": "teply-krug-v1",
-  "status": "PASS_WITH_PUBLICATION_PENDING",
+  "status": "PASS",
   "acceptanceCriteria": [
     { "id": "AC1", "status": "PASS", "proof": "Playwright 6-player host start" },
     { "id": "AC2", "status": "PASS", "proof": "Playwright 12-player full circle and stage transition" },
@@ -12,6 +12,6 @@
     { "id": "AC8", "status": "PASS", "proof": "Desktop/mobile screenshots and horizontal overflow assertion" },
     { "id": "AC9", "status": "PASS", "proof": "Static bundle inspection and zero runtime integrations" },
     { "id": "AC10", "status": "PASS", "proof": "12 unit/content tests, 19 E2E tests plus 1 intentional skip, build, Lighthouse 100/100/100/100" },
-    { "id": "AC11", "status": "UNKNOWN", "proof": "Public repository created; first Pages deployment pending push" }
+    { "id": "AC11", "status": "PASS", "proof": "GitHub Pages workflow run 29873694606 attempt 2 succeeded; public URL returned HTTP 200 and passed a live six-player first-turn smoke test" }
   ]
 }

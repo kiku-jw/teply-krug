@@ -1,6 +1,6 @@
 {
   "taskId": "teply-krug-v1",
-  "verdict": "UNKNOWN",
-  "verifiedAt": null,
-  "notes": "Implementation not yet verified."
+  "verdict": "PASS",
+  "verifiedAt": "2026-07-22T01:27:00+03:00",
+  "notes": "All acceptance criteria passed locally, in CI, and on the live GitHub Pages deployment."
 }

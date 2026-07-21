@@ -1,0 +1,8 @@
+Repository: https://github.com/kiku-jw/teply-krug
+Initial implementation commit: b86cd041f7e7f32dfe6a0afc0bd78e38d81b94e1
+Workflow: https://github.com/kiku-jw/teply-krug/actions/runs/29873694606
+Workflow attempt: 2
+Workflow result: completed / success
+Public URL: https://kiku-jw.github.io/teply-krug/
+HTTP result: 200 from GitHub Pages over HTTPS
+Live browser smoke: welcome -> six-player setup -> first turn
