@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("captures the welcome composition", async ({ page }, testInfo) => {
   await page.goto("./");
-  await expect(page.getByRole("heading", { name: "Стать ближе за один вечер" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Поиграем вместе?" })).toBeVisible();
   const viewportWidth = await page.evaluate(() => window.innerWidth);
   const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(documentWidth).toBe(viewportWidth);
@@ -31,7 +31,7 @@ test("captures the 1440 by 900 presentation viewport", async ({ page }, testInfo
   test.skip(testInfo.project.name !== "desktop", "One Chromium project is enough for this fixed viewport.");
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("./");
-  await expect(page.getByRole("heading", { name: "Стать ближе за один вечер" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Поиграем вместе?" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440);
   await page.waitForTimeout(900);
   await page.screenshot({ path: testInfo.outputPath("welcome-1440.png"), fullPage: true });

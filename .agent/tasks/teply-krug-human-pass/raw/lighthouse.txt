@@ -1,0 +1,9 @@
+Local production build Lighthouse summary
+
+- Performance: 100
+- Accessibility: 100
+- Best practices: 100
+- SEO: 100
+- Largest Contentful Paint: 1058 ms
+- Cumulative Layout Shift: 0
+- Total Blocking Time: 0 ms

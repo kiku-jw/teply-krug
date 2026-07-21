@@ -1,0 +1,13 @@
+{
+  "taskId": "teply-krug-human-pass",
+  "status": "PASS",
+  "acceptanceCriteria": [
+    { "id": "AC1", "status": "PASS", "proof": "Bible-first Playwright assertion, hidden shared stage UI, and automatic round pacing" },
+    { "id": "AC2", "status": "PASS", "proof": "Exact button copy and removed slogan/footer assertions" },
+    { "id": "AC3", "status": "PASS", "proof": "Visible ability explanations and all five Playwright ability flows" },
+    { "id": "AC4", "status": "PASS", "proof": "360 unique balanced cards, 168 rewrites, and reported-prompt regression test" },
+    { "id": "AC5", "status": "PASS", "proof": "Web Audio preference test and reduced-motion CSS guards" },
+    { "id": "AC6", "status": "PASS", "proof": "Playwright game, editor, timer, ability, checkpoint, and finish flows" },
+    { "id": "AC7", "status": "PASS", "proof": "13 unit tests, 21 E2E tests, build, audit, diff hygiene, mobile inspection, and Lighthouse 100/100/100/100" }
+  ]
+}

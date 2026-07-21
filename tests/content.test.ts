@@ -33,4 +33,13 @@ describe("built-in deck", () => {
       expect(card.source).toBe("builtIn");
     }
   });
+
+  it("does not contain the reported abstract or confusing prompts", () => {
+    const deck = builtInCards.map((card) => card.text).join("\n");
+    expect(deck).not.toContain("Что ты умеешь ценить только после небольшой паузы?");
+    expect(deck).not.toContain("Какой твой выбор обычно удивляет людей, которые плохо тебя знают?");
+    expect(deck).not.toContain("Изобрази Илию, который слышит тихий спокойный голос.");
+    expect(deck).not.toContain("Придумай группе добрый вызов до следующей встречи.");
+    expect(deck).not.toContain("Назови одно качество каждого из двух участников, которое пригодилось бы в совместном служении.");
+  });
 });

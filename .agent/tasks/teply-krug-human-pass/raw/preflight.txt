@@ -1,0 +1,9 @@
+Publication preflight
+
+- git diff --check: PASS
+- npm audit --audit-level=high: PASS, 0 vulnerabilities
+- New runtime dependencies: none
+- Runtime network integrations: none
+- Answer storage: none
+- TypeScript assertions: none added
+- Fresh desktop and mobile screenshots inspected

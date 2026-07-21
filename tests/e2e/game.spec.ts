@@ -16,33 +16,67 @@ async function startGame(page: import("@playwright/test").Page, count = 6): Prom
 
 test("host starts a six-player circle and advances in order", async ({ page }) => {
   await startGame(page);
+  const firstCardId = await page.evaluate(() => {
+    const raw = localStorage.getItem("teply-krug:v1");
+    if (raw === null) {
+      return "";
+    }
+    const stored: unknown = JSON.parse(raw);
+    if (typeof stored !== "object" || stored === null || !("session" in stored)) {
+      return "";
+    }
+    const session = Reflect.get(stored, "session");
+    if (typeof session !== "object" || session === null) {
+      return "";
+    }
+    const currentCardId = Reflect.get(session, "currentCardId");
+    return typeof currentCardId === "string" ? currentCardId : "";
+  });
+  expect(firstCardId).toContain("spark-bible-");
+  await expect(page.locator(".stage-rail")).toHaveCount(0);
   await page.getByRole("button", { name: "Открыть вопрос" }).click();
   await expect(page.locator(".question-card")).toBeVisible();
-  await page.getByRole("button", { name: "Готово. Дальше" }).click();
+  await expect(page.getByText("Слушаем без спешки")).toHaveCount(0);
+  await expect(page.locator(".site-note")).toHaveCount(0);
+  await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Игрок 2" })).toBeVisible();
 });
 
-test("full circle reaches a checkpoint and can change stage", async ({ page }) => {
+test("full circle reaches a simple checkpoint and advances pacing automatically", async ({ page }) => {
   await startGame(page, 12);
   for (let index = 0; index < 12; index += 1) {
     await page.getByRole("button", { name: "Открыть вопрос" }).click();
-    await page.getByRole("button", { name: "Готово. Дальше" }).click();
+    await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
   }
-  await expect(page.getByRole("heading", { name: "Все успели сказать своё" })).toBeVisible();
-  await page.getByRole("button", { name: "Дальше: Ближе" }).click();
-  await expect(page.locator(".stage-step.stage-active")).toContainText("Ближе");
+  await expect(page.getByRole("heading", { name: "Все ответили" })).toBeVisible();
+  await expect(page.getByText("Искра")).toHaveCount(0);
+  await expect(page.getByText("Ближе")).toHaveCount(0);
+  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Игрок 1" })).toBeVisible();
+  const secondRoundStage = await page.evaluate(() => {
+    const raw = localStorage.getItem("teply-krug:v1");
+    if (raw === null) {
+      return "";
+    }
+    const stored: unknown = JSON.parse(raw);
+    if (typeof stored !== "object" || stored === null || !("session" in stored)) {
+      return "";
+    }
+    const session = Reflect.get(stored, "session");
+    return typeof session === "object" && session !== null ? Reflect.get(session, "stage") : "";
+  });
+  expect(secondRoundStage).toBe("closer");
 });
 
 test("replace ability is one-use and survives reload", async ({ page }) => {
   await startGame(page);
-  const replace = page.getByRole("button", { name: /Перезагрузка/ });
+  const replace = page.getByRole("button", { name: /Другой вопрос/ });
   await replace.click();
   await expect(replace).toBeDisabled();
   await page.reload();
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(page.getByRole("heading", { name: "Игрок 1" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Перезагрузка/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Другой вопрос/ })).toBeDisabled();
 });
 
 test("host creates and edits a local card", async ({ page }) => {
@@ -83,21 +117,23 @@ test("all social abilities complete their host flow", async ({ page }) => {
   await page.reload();
   await page.getByRole("button", { name: "Продолжить" }).click();
 
-  await page.getByRole("button", { name: /Напарник/ }).click();
+  await expect(page.getByText("Убрать этот и взять новый. Объяснять не нужно.")).toBeVisible();
+  await expect(page.getByText("Позвать любого участника отвечать вдвоём.")).toBeVisible();
+  await page.getByRole("button", { name: /Вместе/ }).click();
   await page.getByRole("button", { name: "Игрок 2", exact: true }).click();
   await expect(page.getByText("Вместе с Игрок 2")).toBeVisible();
 
-  await page.getByRole("button", { name: /Совет круга/ }).click();
-  await expect(page.getByText("Круг помогает идеями")).toBeVisible();
+  await page.getByRole("button", { name: /Спросить всех/ }).click();
+  await expect(page.getByText("Отвечает весь круг")).toBeVisible();
 
-  await page.getByRole("button", { name: /Два пути/ }).click();
-  await expect(page.getByText("Выбери один вопрос")).toBeVisible();
+  await page.getByRole("button", { name: /На выбор/ }).click();
+  await expect(page.getByText("Выбери вопрос")).toBeVisible();
   await page.locator("[data-choose-card]").first().click();
 
-  await page.getByRole("button", { name: /Выбор темы/ }).click();
+  await page.getByRole("button", { name: /Выбрать тему/ }).click();
   await page.getByRole("button", { name: "Библия", exact: true }).click();
   await page.getByRole("button", { name: "Открыть вопрос" }).click();
-  await expect(page.locator(".question-card .card-meta")).toContainText("Библия");
+  await expect(page.locator(".question-card .card-meta")).toHaveCount(0);
 });
 
 test("soft timer reaches zero without advancing the turn", async ({ page }) => {
@@ -107,29 +143,77 @@ test("soft timer reaches zero without advancing the turn", async ({ page }) => {
   await page.clock.runFor("00:01:16");
   await expect(page.locator("#timer-display")).toHaveText("0:00");
   await expect(page.getByRole("heading", { name: "Игрок 1" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Готово. Дальше" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "ДАЛЬШЕ", exact: true })).toBeEnabled();
 });
 
-test("the third stage completes on the final screen", async ({ page }) => {
-  await startGame(page);
-  await page.evaluate(() => {
-    const raw = localStorage.getItem("teply-krug:v1");
-    if (raw === null) {
-      return;
+test("short sound cues follow the host setting", async ({ page }) => {
+  await page.addInitScript(() => {
+    const frequencies: number[] = [];
+    Object.defineProperty(window, "__teplyKrugSoundFrequencies", { value: frequencies });
+    class QuietAudioContext {
+      currentTime = 0;
+      destination = {};
+
+      createOscillator() {
+        return {
+          type: "sine",
+          frequency: {
+            setValueAtTime(value: number) {
+              frequencies.push(value);
+            },
+            exponentialRampToValueAtTime() {},
+          },
+          connect() {},
+          start() {},
+          stop() {},
+          addEventListener(_event: string, listener: () => void) {
+            listener();
+          },
+        };
+      }
+
+      createGain() {
+        return {
+          gain: {
+            setValueAtTime() {},
+            exponentialRampToValueAtTime() {},
+          },
+          connect() {},
+        };
+      }
+
+      close() {
+        return Promise.resolve();
+      }
     }
-    const stored = JSON.parse(raw);
-    stored.session.stage = "together";
-    stored.session.currentPlayerIndex = 0;
-    stored.session.round = 1;
-    stored.session.currentCardId = null;
-    localStorage.setItem("teply-krug:v1", JSON.stringify(stored));
+    Object.defineProperty(window, "AudioContext", { value: QuietAudioContext });
   });
-  await page.reload();
-  await page.getByRole("button", { name: "Продолжить" }).click();
+
+  await startGame(page);
+  await page.getByRole("button", { name: "Открыть вопрос" }).click();
+  const enabledCount = await page.evaluate(() => {
+    const values = Reflect.get(window, "__teplyKrugSoundFrequencies");
+    return Array.isArray(values) ? values.length : 0;
+  });
+  expect(enabledCount).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "Настройки" }).click();
+  await page.getByLabel("Звуки").uncheck();
+  await page.getByRole("button", { name: "Сохранить" }).click();
+  await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
+  const disabledCount = await page.evaluate(() => {
+    const values = Reflect.get(window, "__teplyKrugSoundFrequencies");
+    return Array.isArray(values) ? values.length : 0;
+  });
+  expect(disabledCount).toBe(enabledCount);
+});
+
+test("a completed round can finish the evening", async ({ page }) => {
+  await startGame(page);
   for (let index = 0; index < 6; index += 1) {
     await page.getByRole("button", { name: "Открыть вопрос" }).click();
-    await page.getByRole("button", { name: "Готово. Дальше" }).click();
+    await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
   }
-  await page.getByRole("button", { name: "Завершить вечер" }).click();
-  await expect(page.getByRole("heading", { name: "Спасибо за настоящий вечер" })).toBeVisible();
+  await page.getByRole("button", { name: "Закончить", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Спасибо за вечер" })).toBeVisible();
 });

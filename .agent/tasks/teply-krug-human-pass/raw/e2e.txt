@@ -1,0 +1,6 @@
+npm run test:e2e -- --reporter=line
+
+PASS
+- 21 Playwright tests passed
+- 1 viewport-only duplicate intentionally skipped
+- Desktop and 390x844 mobile projects covered

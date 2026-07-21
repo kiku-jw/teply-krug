@@ -9,9 +9,8 @@ import {
   createPlayers,
   drawCard,
   markAbilityUsed,
-  nextStage,
-  stageDescriptions,
   stageNames,
+  stageForRound,
   STAGES,
 } from "./game";
 import { clearStoredData, loadStoredData, saveStoredData } from "./storage";
@@ -41,6 +40,8 @@ let timerRunning = false;
 let timerHandle: number | null = null;
 let toastMessage = "";
 let toastHandle: number | null = null;
+
+type SoundCue = "reveal" | "turn" | "ability" | "timer";
 
 function escapeHtml(value: string): string {
   return value
@@ -116,6 +117,7 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
   if (session === null) {
     return null;
   }
+  session.stage = stageForRound(session.round);
   const result = drawCard(
     enabledCards(),
     session.stage,
@@ -133,7 +135,7 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
   resetTimer();
   persist();
   if (result.recycled) {
-    showToast("Карточки этого этапа закончились. Начался новый цикл.");
+    showToast("Эти вопросы закончились, поэтому колода началась заново.");
   }
   return result.card;
 }
@@ -142,7 +144,7 @@ function renderBrand(compact = false): string {
   return `
     <button class="brand ${compact ? "brand-compact" : ""}" data-action="home" aria-label="На главную">
       <span class="brand-mark" aria-hidden="true"><span></span></span>
-      <span><strong>Тёплый круг</strong><small>вопросы для живого знакомства</small></span>
+      <span><strong>Тёплый круг</strong><small>игра для друзей</small></span>
     </button>
   `;
 }
@@ -162,7 +164,6 @@ function renderShell(content: string, options?: { compactHeader?: boolean; gameH
         </nav>
       </header>
       <main id="main-content">${content}</main>
-      <footer class="site-note">Неофициальная дружеская игра. Ответы участников не сохраняются.</footer>
     </div>
   `;
   bindGlobalActions();
@@ -201,26 +202,23 @@ function renderWelcome(): void {
   renderShell(`
     <section class="welcome" aria-labelledby="welcome-title">
       <div class="welcome-copy">
-        <p class="eyebrow">Один экран. Один круг. Много настоящих разговоров.</p>
-        <h1 id="welcome-title">Стать ближе за один вечер</h1>
-        <p class="welcome-lead">Введите имена, включите демонстрацию в Zoom и позвольте хорошему вопросу сделать остальное.</p>
+        <h1 id="welcome-title">Поиграем вместе?</h1>
+        <p class="welcome-lead">Добавьте имена, покажите экран и открывайте вопросы по очереди.</p>
         <div class="welcome-actions">
           <button class="button button-primary button-large" data-action="new-game">Собрать круг</button>
           ${canContinue ? '<button class="button button-secondary button-large" data-action="continue">Продолжить</button>' : ""}
         </div>
         <div class="welcome-facts" aria-label="Как устроена игра">
-          <div><strong>360</strong><span>живых карточек</span></div>
-          <div><strong>3</strong><span>мягких этапа</span></div>
-          <div><strong>0</strong><span>очков и неловких рейтингов</span></div>
+          <div><strong>360</strong><span>вопросов и заданий</span></div>
+          <div><strong>6-12</strong><span>человек</span></div>
+          <div><strong>0</strong><span>очков</span></div>
         </div>
       </div>
       <div class="welcome-scene" aria-label="Пример игровой карточки">
         <div class="orbit orbit-one" aria-hidden="true"></div>
         <div class="orbit orbit-two" aria-hidden="true"></div>
         <div class="sample-card">
-          <div class="sample-card-top"><span>Искра</span><span>О тебе</span></div>
-          <p>Какой маленький повод недавно сделал твой день лучше?</p>
-          <div class="sample-card-bottom"><span>Слушаем без спешки</span><span>75 сек</span></div>
+          <p>С кем из библейских персонажей ты бы охотно отправился в путешествие?</p>
         </div>
         <div class="scene-chip chip-left"><strong>6-12</strong><span>человек</span></div>
         <div class="scene-chip chip-right"><strong>${seenCount}</strong><span>уже сыграно</span></div>
@@ -286,14 +284,9 @@ function renderSetup(): void {
     <section class="setup-layout" aria-labelledby="setup-title">
       <div class="setup-intro">
         <button class="text-button" data-action="back">Назад</button>
-        <p class="section-kicker">Перед началом</p>
         <h1 id="setup-title">Кто сегодня в круге?</h1>
         <p>Порядок имён станет порядком ходов. Его можно изменить стрелками.</p>
-        <div class="stage-preview">
-          ${STAGES.map((stage, index) => `
-            <div><span>${index + 1}</span><strong>${stageNames[stage]}</strong><small>${stageDescriptions[stage]}</small></div>
-          `).join("")}
-        </div>
+        <p>Начнём с Библии, а дальше вопросы будут меняться сами.</p>
       </div>
       <form class="setup-form" id="setup-form">
         <div class="form-heading"><h2>Участники</h2><span>${draftNames.length}/12</span></div>
@@ -369,7 +362,7 @@ function renderSetup(): void {
       partnerPlayerId: null,
       groupHelpActive: false,
     };
-    drawForCurrent();
+    drawForCurrent("bible");
     screen = "game";
     persist();
     render();
@@ -406,8 +399,8 @@ function startTimer(): void {
     updateTimerDisplay();
     if (timerRemaining <= 0) {
       stopTimer();
-      playSoftBell();
-      announce("Время вышло. Ответ можно спокойно закончить.");
+      playSound("timer");
+      announce("Время вышло. Можно закончить ответ.");
     }
   }, 1000);
   updateTimerDisplay();
@@ -425,7 +418,7 @@ function updateTimerDisplay(): void {
   }
 }
 
-function playSoftBell(): void {
+function playSound(cue: SoundCue): void {
   if (!data.preferences.soundEnabled) {
     return;
   }
@@ -433,27 +426,27 @@ function playSoftBell(): void {
     const context = new AudioContext();
     const oscillator = context.createOscillator();
     const gain = context.createGain();
+    const settings: Record<SoundCue, { start: number; end: number; length: number; volume: number }> = {
+      reveal: { start: 392, end: 523.25, length: 0.28, volume: 0.075 },
+      turn: { start: 523.25, end: 659.25, length: 0.22, volume: 0.065 },
+      ability: { start: 329.63, end: 493.88, length: 0.3, volume: 0.07 },
+      timer: { start: 523.25, end: 523.25, length: 0.7, volume: 0.12 },
+    };
+    const sound = settings[cue];
     oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(523.25, context.currentTime);
+    oscillator.frequency.setValueAtTime(sound.start, context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(sound.end, context.currentTime + sound.length * 0.7);
     gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.7);
+    gain.gain.exponentialRampToValueAtTime(sound.volume, context.currentTime + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + sound.length);
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start();
-    oscillator.stop(context.currentTime + 0.72);
+    oscillator.stop(context.currentTime + sound.length + 0.02);
     oscillator.addEventListener("ended", () => void context.close());
   } catch {
     // Sound is optional and may be blocked by browser policy.
   }
-}
-
-function renderStageRail(stage: Stage): string {
-  return STAGES.map((item, index) => {
-    const activeIndex = STAGES.indexOf(stage);
-    const status = index < activeIndex ? "stage-done" : index === activeIndex ? "stage-active" : "";
-    return `<div class="stage-step ${status}"><span>${index + 1}</span><strong>${stageNames[item]}</strong></div>`;
-  }).join("");
 }
 
 function renderPlayerRail(): string {
@@ -482,9 +475,9 @@ function renderAbilities(): string {
   return player.abilities.map((ability) => {
     const used = player.usedAbilities.includes(ability);
     return `
-      <button class="ability" data-ability="${ability}" ${used ? "disabled" : ""} title="${escapeHtml(abilityDescriptions[ability])}">
+      <button class="ability" data-ability="${ability}" ${used ? "disabled" : ""} aria-label="${escapeHtml(`${abilityNames[ability]}. ${abilityDescriptions[ability]}`)}">
         <span>${used ? "0" : "1"}</span>
-        <strong>${escapeHtml(abilityNames[ability])}</strong>
+        <span class="ability-copy"><strong>${escapeHtml(abilityNames[ability])}</strong><small>${escapeHtml(abilityDescriptions[ability])}</small></span>
       </button>
     `;
   }).join("");
@@ -496,15 +489,14 @@ function renderQuestionCard(card: Card): string {
     return "";
   }
   const partner = session.players.find((player) => player.id === session.partnerPlayerId);
+  const contexts = [
+    partner !== undefined ? `Вместе с ${escapeHtml(partner.name)}` : "",
+    session.groupHelpActive ? "Отвечает весь круг" : "",
+  ].filter((context) => context.length > 0);
   return `
     <article class="question-card ${card.mode === "perform" ? "question-card-perform" : ""}">
-      <div class="card-meta"><span>${stageNames[card.stage]}</span><span>${categoryNames[card.category]}</span></div>
       <p>${escapeHtml(card.text)}</p>
-      <div class="card-context">
-        ${partner !== undefined ? `<span>Вместе с ${escapeHtml(partner.name)}</span>` : ""}
-        ${session.groupHelpActive ? "<span>Круг помогает идеями</span>" : ""}
-        <span>${card.mode === "perform" ? "Покажи, не торопясь" : card.mode === "group" ? "Можно подключить весь круг" : "Слушаем без спешки"}</span>
-      </div>
+      ${contexts.length > 0 ? `<div class="card-context">${contexts.map((context) => `<span>${context}</span>`).join("")}</div>` : ""}
     </article>
   `;
 }
@@ -515,14 +507,14 @@ function renderChoiceCards(): string {
     return "";
   }
   return `
-    <div class="choice-heading"><span>Два пути</span><strong>Выбери один вопрос</strong></div>
+    <div class="choice-heading"><strong>Выбери вопрос</strong></div>
     <div class="choice-grid">
       ${session.alternativeCardIds.map((id) => {
         const card = cardById(id);
         if (card === null) {
           return "";
         }
-        return `<button class="choice-card" data-choose-card="${card.id}"><span>${categoryNames[card.category]}</span><strong>${escapeHtml(card.text)}</strong></button>`;
+        return `<button class="choice-card" data-choose-card="${card.id}"><strong>${escapeHtml(card.text)}</strong></button>`;
       }).join("")}
     </div>
   `;
@@ -546,7 +538,6 @@ function renderGame(): void {
   renderShell(`
     <section class="game-layout" aria-labelledby="turn-title">
       <aside class="game-sidebar">
-        <div class="stage-rail">${renderStageRail(session.stage)}</div>
         <div class="round-label">Круг ${session.round}</div>
         <ol class="player-rail">${renderPlayerRail()}</ol>
       </aside>
@@ -564,7 +555,6 @@ function renderGame(): void {
                 <button class="card-cover" data-action="reveal-card">
                   <span class="cover-mark" aria-hidden="true"><span></span></span>
                   <strong>Открыть вопрос</strong>
-                  <small>${categoryNames[card.category]}</small>
                 </button>
               `}
         </div>
@@ -573,10 +563,9 @@ function renderGame(): void {
             <span id="timer-display">${data.preferences.timerSeconds === 0 ? "Без таймера" : formatTime(timerRemaining)}</span>
             ${data.preferences.timerSeconds === 0 ? "" : '<button class="text-button" id="timer-toggle">Старт</button><button class="text-button" data-action="reset-timer">Сброс</button>'}
           </div>
-          <button class="button button-primary button-next" data-action="complete-turn" ${cardRevealed ? "" : "disabled"}>Готово. Дальше</button>
+          <button class="button button-primary button-next" data-action="complete-turn" ${cardRevealed ? "" : "disabled"}>ДАЛЬШЕ</button>
         </div>
         <div class="ability-bar" aria-label="Разовые способности ${escapeHtml(player.name)}">
-          <span class="ability-label">Супернавыки</span>
           ${renderAbilities()}
         </div>
       </div>
@@ -594,6 +583,7 @@ function renderGame(): void {
   root.querySelector<HTMLElement>("[data-action='reveal-card']")?.addEventListener("click", () => {
     cardRevealed = true;
     resetTimer();
+    playSound("reveal");
     render();
     startTimer();
     announce(`Вопрос для ${player.name}: ${card.text}`);
@@ -622,6 +612,7 @@ function renderGame(): void {
         data.session.alternativeCardIds = [];
         cardRevealed = true;
         resetTimer();
+        playSound("reveal");
         persist();
         render();
         startTimer();
@@ -661,8 +652,9 @@ function useAbility(rawAbility: string): void {
     const oldCard = data.session.currentCardId;
     drawForCurrent(undefined, oldCard === null ? [] : [oldCard]);
     persist();
+    playSound("ability");
     render();
-    showToast("Вопрос заменён. Объяснять причину не нужно.");
+    showToast("Вот другой вопрос.");
     return;
   }
   if (rawAbility === "twoChoices") {
@@ -682,6 +674,7 @@ function useAbility(rawAbility: string): void {
       cardRevealed = true;
       stopTimer();
       persist();
+      playSound("ability");
       render();
     }
     return;
@@ -691,8 +684,9 @@ function useAbility(rawAbility: string): void {
     data.session.groupHelpActive = true;
     cardRevealed = true;
     persist();
+    playSound("ability");
     render();
-    showToast("Теперь весь круг может подкидывать идеи.");
+    showToast("Теперь отвечать может весь круг.");
     return;
   }
   if (rawAbility === "partner") {
@@ -728,9 +722,8 @@ function openPartnerDialog(): void {
   const dialog = openDialog(`
     <div class="dialog-panel">
       <button class="dialog-close" data-close-dialog aria-label="Закрыть">×</button>
-      <span class="dialog-kicker">Напарник</span>
-      <h2>Кого пригласить?</h2>
-      <p>Выбранный человек отвечает или выполняет задание вместе с ${escapeHtml(player.name)}.</p>
+      <h2>Ответить вместе с кем?</h2>
+      <p>Выбранный человек присоединится к ${escapeHtml(player.name)}.</p>
       <div class="dialog-options">
         ${choices.map((candidate) => `<button data-partner="${candidate.id}">${escapeHtml(candidate.name)}</button>`).join("")}
       </div>
@@ -744,6 +737,7 @@ function openPartnerDialog(): void {
         data.session.partnerPlayerId = partnerId;
         cardRevealed = true;
         persist();
+        playSound("ability");
         dialog.close();
         render();
       }
@@ -755,9 +749,8 @@ function openCategoryDialog(): void {
   const dialog = openDialog(`
     <div class="dialog-panel">
       <button class="dialog-close" data-close-dialog aria-label="Закрыть">×</button>
-      <span class="dialog-kicker">Выбор темы</span>
-      <h2>Какой вопрос открыть?</h2>
-      <p>Категория останется в рамках текущего этапа.</p>
+      <h2>О чём хочется вопрос?</h2>
+      <p>Выбери тему, и карточка сменится.</p>
       <div class="dialog-options dialog-options-categories">
         ${CATEGORIES.map((category) => `<button data-category="${category}">${categoryNames[category]}</button>`).join("")}
       </div>
@@ -770,6 +763,7 @@ function openCategoryDialog(): void {
         updateCurrentPlayerAbility("chooseCategory");
         drawForCurrent(category);
         persist();
+        playSound("ability");
         dialog.close();
         render();
       }
@@ -783,6 +777,7 @@ function completeTurn(): void {
     return;
   }
   stopTimer();
+  playSound("turn");
   const nextIndex = session.currentPlayerIndex + 1;
   if (nextIndex >= session.players.length) {
     session.currentPlayerIndex = 0;
@@ -807,39 +802,23 @@ function renderCheckpoint(): void {
     render();
     return;
   }
-  const upcoming = nextStage(session.stage);
-  const completedRound = Math.max(1, session.round - 1);
   renderShell(`
     <section class="checkpoint" aria-labelledby="checkpoint-title">
       <div class="checkpoint-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
-      <p class="section-kicker">Полный круг завершён</p>
-      <h1 id="checkpoint-title">Все успели сказать своё</h1>
-      <p>${stageNames[session.stage]}, круг ${completedRound}. Можно задержаться здесь или мягко сменить настроение.</p>
+      <h1 id="checkpoint-title">Все ответили</h1>
+      <p>Можно сделать паузу или сыграть ещё один круг.</p>
       <div class="checkpoint-actions">
-        <button class="button button-secondary button-large" data-action="more-round">Ещё круг</button>
-        ${upcoming === null
-          ? '<button class="button button-primary button-large" data-action="finish-game">Завершить вечер</button>'
-          : `<button class="button button-primary button-large" data-action="next-stage">Дальше: ${stageNames[upcoming]}</button>`}
+        <button class="button button-primary button-large" data-action="more-round">Продолжить</button>
+        <button class="button button-secondary button-large" data-action="finish-game">Закончить</button>
       </div>
-      <div class="checkpoint-stage-row">${renderStageRail(session.stage)}</div>
     </section>
   `, { compactHeader: true });
   root.querySelector<HTMLElement>("[data-action='more-round']")?.addEventListener("click", () => {
+    session.stage = stageForRound(session.round);
     drawForCurrent();
     screen = "game";
+    persist();
     render();
-  });
-  root.querySelector<HTMLElement>("[data-action='next-stage']")?.addEventListener("click", () => {
-    const next = nextStage(session.stage);
-    if (next !== null) {
-      session.stage = next;
-      session.round = 1;
-      session.currentPlayerIndex = 0;
-      drawForCurrent();
-      screen = "game";
-      persist();
-      render();
-    }
   });
   root.querySelector<HTMLElement>("[data-action='finish-game']")?.addEventListener("click", () => {
     screen = "finish";
@@ -857,9 +836,8 @@ function renderFinish(): void {
   renderShell(`
     <section class="finish" aria-labelledby="finish-title">
       <div class="finish-light" aria-hidden="true"></div>
-      <p class="section-kicker">Круг замкнулся</p>
-      <h1 id="finish-title">Спасибо за настоящий вечер</h1>
-      <p>Напоследок каждый может назвать одну вещь, которую сегодня узнал о другом человеке.</p>
+      <h1 id="finish-title">Спасибо за вечер</h1>
+      <p>Напоследок каждый может назвать один момент, который ему запомнился.</p>
       <div class="finish-people">
         ${session.players.map((player) => `<span>${escapeHtml(player.name)}</span>`).join("")}
       </div>
@@ -1079,8 +1057,8 @@ function renderSettings(): void {
           <option value="120" ${data.preferences.timerSeconds === 120 ? "selected" : ""}>120 секунд</option>
           <option value="0" ${data.preferences.timerSeconds === 0 ? "selected" : ""}>Выключен</option>
         </select></label>
-        <label class="setting-row"><span><strong>Звуковой сигнал</strong><small>Тихий тон по завершении времени.</small></span><input name="sound" type="checkbox" ${data.preferences.soundEnabled ? "checked" : ""} /></label>
-        <label class="setting-row"><span><strong>Плавные переходы</strong><small>Можно отключить вместе с декоративным движением.</small></span><input name="motion" type="checkbox" ${data.preferences.motionEnabled ? "checked" : ""} /></label>
+        <label class="setting-row"><span><strong>Звуки</strong><small>Короткие сигналы при открытии вопроса, новом ходе и окончании времени.</small></span><input name="sound" type="checkbox" ${data.preferences.soundEnabled ? "checked" : ""} /></label>
+        <label class="setting-row"><span><strong>Анимации</strong><small>Движение карточек и элементов игры.</small></span><input name="motion" type="checkbox" ${data.preferences.motionEnabled ? "checked" : ""} /></label>
         <button class="button button-primary" type="submit">Сохранить</button>
       </form>
       <div class="data-panel">

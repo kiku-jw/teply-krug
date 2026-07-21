@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { builtInCards } from "../src/content/cards";
-import { createPlayers, dealAbilities, drawCard, markAbilityUsed, nextStage } from "../src/game";
+import { createPlayers, dealAbilities, drawCard, markAbilityUsed, stageForRound } from "../src/game";
 
 describe("game model", () => {
   it("deals replace plus two distinct optional abilities", () => {
@@ -33,10 +33,11 @@ describe("game model", () => {
     expect(result.seenCardIds).toHaveLength(1);
   });
 
-  it("progresses through the three named stages", () => {
-    expect(nextStage("spark")).toBe("closer");
-    expect(nextStage("closer")).toBe("together");
-    expect(nextStage("together")).toBeNull();
+  it("advances internal pacing without a host-facing stage choice", () => {
+    expect(stageForRound(1)).toBe("spark");
+    expect(stageForRound(2)).toBe("closer");
+    expect(stageForRound(3)).toBe("together");
+    expect(stageForRound(8)).toBe("together");
   });
 
   it("spends an ability once", () => {

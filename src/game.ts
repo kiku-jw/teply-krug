@@ -5,39 +5,33 @@ export const CATEGORIES: Category[] = ["personal", "stories", "service", "bible"
 export const ABILITIES: AbilityId[] = ["replace", "partner", "twoChoices", "groupHelp", "chooseCategory"];
 
 export const stageNames: Record<Stage, string> = {
-  spark: "Искра",
-  closer: "Ближе",
-  together: "Вместе",
-};
-
-export const stageDescriptions: Record<Stage, string> = {
-  spark: "Начинаем легко и с улыбкой",
-  closer: "Узнаём истории и то, что для нас важно",
-  together: "Импровизируем и заканчиваем одним кругом",
+  spark: "В начале",
+  closer: "После первого круга",
+  together: "После второго круга",
 };
 
 export const categoryNames: Record<Category, string> = {
-  personal: "О тебе",
-  stories: "Истории",
+  personal: "О себе",
+  stories: "Случай из жизни",
   service: "Служение",
   bible: "Библия",
-  creative: "Импровизация",
+  creative: "Показать или придумать",
 };
 
 export const abilityNames: Record<AbilityId, string> = {
-  replace: "Перезагрузка",
-  partner: "Напарник",
-  twoChoices: "Два пути",
-  groupHelp: "Совет круга",
-  chooseCategory: "Выбор темы",
+  replace: "Другой вопрос",
+  partner: "Вместе",
+  twoChoices: "На выбор",
+  groupHelp: "Спросить всех",
+  chooseCategory: "Выбрать тему",
 };
 
 export const abilityDescriptions: Record<AbilityId, string> = {
-  replace: "Замени текущую карточку без объяснений.",
-  partner: "Пригласи одного человека отвечать вместе.",
-  twoChoices: "Открой ещё одну карточку и выбери одну из двух.",
-  groupHelp: "Попроси весь круг подкинуть идеи.",
-  chooseCategory: "Выбери тему новой карточки на этом этапе.",
+  replace: "Убрать этот и взять новый. Объяснять не нужно.",
+  partner: "Позвать любого участника отвечать вдвоём.",
+  twoChoices: "Открыть второй вопрос и выбрать один.",
+  groupHelp: "Попросить круг подкинуть ответы или идеи.",
+  chooseCategory: "Взять вопрос на выбранную тему.",
 };
 
 export function shuffle<T>(items: T[], random: () => number = Math.random): T[] {
@@ -103,9 +97,14 @@ export function drawCard(
   };
 }
 
-export function nextStage(stage: Stage): Stage | null {
-  const index = STAGES.indexOf(stage);
-  return STAGES[index + 1] ?? null;
+export function stageForRound(round: number): Stage {
+  if (round <= 1) {
+    return "spark";
+  }
+  if (round === 2) {
+    return "closer";
+  }
+  return "together";
 }
 
 export function markAbilityUsed(player: Player, ability: AbilityId): Player {
