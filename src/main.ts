@@ -40,8 +40,16 @@ let timerRunning = false;
 let timerHandle: number | null = null;
 let toastMessage = "";
 let toastHandle: number | null = null;
+let jarRevealMode: "idle" | "intro" | "quick" | "lucky" = "idle";
+let jarRevealCount = 0;
+let jarRevealRun = 0;
+let jarRevealFallbackHandle: number | null = null;
 
 type SoundCue = "reveal" | "turn" | "ability" | "timer";
+
+const jarPosterUrl = "./media/question-jar-poster.webp";
+const jarIntroUrl = "./media/question-jar-intro.mp4";
+const jarQuickUrl = "./media/question-jar-quick.mp4";
 
 function escapeHtml(value: string): string {
   return value
@@ -131,6 +139,7 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
   session.alternativeCardIds = [];
   session.partnerPlayerId = null;
   session.groupHelpActive = false;
+  cancelJarReveal();
   cardRevealed = false;
   resetTimer();
   persist();
@@ -142,9 +151,9 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
 
 function renderBrand(compact = false): string {
   return `
-    <button class="brand ${compact ? "brand-compact" : ""}" data-action="home" aria-label="На главную">
+    <button class="brand ${compact ? "brand-compact" : ""}" data-action="home" aria-label="Доставай! — на главную">
       <span class="brand-mark" aria-hidden="true"><span></span></span>
-      <span><strong>Тёплый круг</strong><small>игра для друзей</small></span>
+      <span><strong>Доставай!</strong><small>банка вопросов</small></span>
     </button>
   `;
 }
@@ -172,6 +181,7 @@ function renderShell(content: string, options?: { compactHeader?: boolean; gameH
 function bindGlobalActions(): void {
   root.querySelectorAll<HTMLElement>("[data-action='home']").forEach((element) => {
     element.addEventListener("click", () => {
+      cancelJarReveal();
       stopTimer();
       screen = "welcome";
       render();
@@ -179,6 +189,7 @@ function bindGlobalActions(): void {
   });
   root.querySelectorAll<HTMLElement>("[data-action='editor']").forEach((element) => {
     element.addEventListener("click", () => {
+      cancelJarReveal();
       stopTimer();
       returnScreen = screen;
       screen = "editor";
@@ -188,6 +199,7 @@ function bindGlobalActions(): void {
   });
   root.querySelectorAll<HTMLElement>("[data-action='settings']").forEach((element) => {
     element.addEventListener("click", () => {
+      cancelJarReveal();
       stopTimer();
       returnScreen = screen;
       screen = "settings";
@@ -202,26 +214,27 @@ function renderWelcome(): void {
   renderShell(`
     <section class="welcome" aria-labelledby="welcome-title">
       <div class="welcome-copy">
-        <h1 id="welcome-title">Поиграем вместе?</h1>
-        <p class="welcome-lead">Добавьте имена, покажите экран и открывайте вопросы по очереди.</p>
+        <h1 id="welcome-title">Что сегодня попадётся?</h1>
+        <p class="welcome-lead">Впишите имена, покажите экран в Zoom и тяните записки по очереди.</p>
         <div class="welcome-actions">
-          <button class="button button-primary button-large" data-action="new-game">Собрать круг</button>
+          <button class="button button-primary button-large" data-action="new-game">Собрать компанию</button>
           ${canContinue ? '<button class="button button-secondary button-large" data-action="continue">Продолжить</button>' : ""}
         </div>
-        <div class="welcome-facts" aria-label="Как устроена игра">
-          <div><strong>360</strong><span>вопросов и заданий</span></div>
-          <div><strong>2-12</strong><span>человек</span></div>
-          <div><strong>0</strong><span>очков</span></div>
-        </div>
       </div>
-      <div class="welcome-scene" aria-label="Пример игровой карточки">
-        <div class="orbit orbit-one" aria-hidden="true"></div>
-        <div class="orbit orbit-two" aria-hidden="true"></div>
-        <div class="sample-card">
-          <p>С кем из библейских персонажей ты бы охотно отправился в путешествие?</p>
+      <div class="welcome-scene" aria-label="Банка с записками">
+        <div class="jar-halo" aria-hidden="true"></div>
+        <div class="jar-showcase">
+          <img src="${jarPosterUrl}" alt="Прозрачная банка со сложенными записками" width="720" height="720" />
+          <span class="loose-note loose-note-one" aria-hidden="true"></span>
+          <span class="loose-note loose-note-two" aria-hidden="true"></span>
         </div>
         <div class="scene-chip chip-left"><strong>2-12</strong><span>человек</span></div>
-        <div class="scene-chip chip-right"><strong>${seenCount}</strong><span>уже сыграно</span></div>
+        <div class="scene-chip chip-right"><strong>${seenCount}</strong><span>уже вытянуто</span></div>
+      </div>
+      <div class="welcome-facts" aria-label="Как устроена игра">
+        <div><strong>360</strong><span>записок в банке</span></div>
+        <div><strong>2-12</strong><span>человек</span></div>
+        <div><strong>0</strong><span>правильных ответов</span></div>
       </div>
     </section>
   `);
@@ -257,11 +270,11 @@ function setupValidationMessage(names: string[]): string {
     return "Добавьте хотя бы ещё одного человека.";
   }
   if (names.length > 12) {
-    return "В одном круге может быть не больше 12 человек.";
+    return "В одной игре может быть не больше 12 человек.";
   }
   const normalized = names.map((name) => name.toLocaleLowerCase("ru-RU"));
   if (new Set(normalized).size !== normalized.length) {
-    return "Имена в круге не должны повторяться.";
+    return "Имена не должны повторяться.";
   }
   return "";
 }
@@ -284,9 +297,9 @@ function renderSetup(): void {
     <section class="setup-layout" aria-labelledby="setup-title">
       <div class="setup-intro">
         <button class="text-button" data-action="back">Назад</button>
-        <h1 id="setup-title">Кто сегодня в круге?</h1>
+        <h1 id="setup-title">Кто сегодня играет?</h1>
         <p>Порядок имён станет порядком ходов. Его можно изменить стрелками.</p>
-        <p>Начнём с Библии, а дальше вопросы будут меняться сами.</p>
+        <p>Первый вопрос будет о Библии. Дальше темы перемешаются сами.</p>
       </div>
       <form class="setup-form" id="setup-form">
         <div class="form-heading"><h2>Участники</h2><span>${draftNames.length}/12</span></div>
@@ -449,6 +462,86 @@ function playSound(cue: SoundCue): void {
   }
 }
 
+function cancelJarReveal(): void {
+  jarRevealRun += 1;
+  jarRevealMode = "idle";
+  if (jarRevealFallbackHandle !== null) {
+    window.clearTimeout(jarRevealFallbackHandle);
+    jarRevealFallbackHandle = null;
+  }
+}
+
+function shouldReduceRevealMotion(): boolean {
+  return !data.preferences.motionEnabled
+    || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function finishJarReveal(run: number, playerName: string, cardText: string): void {
+  if (run !== jarRevealRun) {
+    return;
+  }
+  if (jarRevealFallbackHandle !== null) {
+    window.clearTimeout(jarRevealFallbackHandle);
+    jarRevealFallbackHandle = null;
+  }
+  jarRevealMode = "idle";
+  cardRevealed = true;
+  resetTimer();
+  render();
+  startTimer();
+  announce(`Вопрос для ${playerName}: ${cardText}`);
+}
+
+function beginJarReveal(playerName: string, cardText: string): void {
+  cancelJarReveal();
+  resetTimer();
+
+  if (shouldReduceRevealMotion()) {
+    playSound("reveal");
+    cardRevealed = true;
+    render();
+    startTimer();
+    announce(`Вопрос для ${playerName}: ${cardText}`);
+    return;
+  }
+
+  const isFirstDraw = jarRevealCount === 0;
+  const isLuckyDraw = jarRevealCount > 0 && (jarRevealCount + 1) % 5 === 0;
+  jarRevealCount += 1;
+  jarRevealMode = isFirstDraw ? "intro" : isLuckyDraw ? "lucky" : "quick";
+  const run = jarRevealRun;
+  render();
+
+  const video = root.querySelector<HTMLVideoElement>("#jar-reveal-video");
+  if (video === null) {
+    playSound("reveal");
+    finishJarReveal(run, playerName, cardText);
+    return;
+  }
+
+  let finished = false;
+  const finish = (): void => {
+    if (finished) {
+      return;
+    }
+    finished = true;
+    finishJarReveal(run, playerName, cardText);
+  };
+  const finishWithFallbackSound = (): void => {
+    if (finished) {
+      return;
+    }
+    playSound("reveal");
+    finish();
+  };
+  video.muted = !data.preferences.soundEnabled;
+  video.addEventListener("ended", finish, { once: true });
+  video.addEventListener("error", finishWithFallbackSound, { once: true });
+  jarRevealFallbackHandle = window.setTimeout(finishWithFallbackSound, isFirstDraw ? 4300 : 2200);
+  announce(`Достаём вопрос для ${playerName}.`);
+  void video.play().catch(finishWithFallbackSound);
+}
+
 function renderPlayerRail(): string {
   const session = data.session;
   if (session === null) {
@@ -475,12 +568,35 @@ function renderAbilities(): string {
   return player.abilities.map((ability) => {
     const used = player.usedAbilities.includes(ability);
     return `
-      <button class="ability" data-ability="${ability}" ${used ? "disabled" : ""} aria-label="${escapeHtml(`${abilityNames[ability]}. ${abilityDescriptions[ability]}`)}">
+      <button class="ability" data-ability="${ability}" ${used || jarRevealMode !== "idle" ? "disabled" : ""} aria-label="${escapeHtml(`${abilityNames[ability]}. ${abilityDescriptions[ability]}`)}">
         <span>${used ? "0" : "1"}</span>
         <span class="ability-copy"><strong>${escapeHtml(abilityNames[ability])}</strong><small>${escapeHtml(abilityDescriptions[ability])}</small></span>
       </button>
     `;
   }).join("");
+}
+
+function renderJarCover(): string {
+  return `
+    <button class="jar-draw-button" data-action="reveal-card" aria-label="ВЫТЯНУТЬ">
+      <img src="${jarPosterUrl}" alt="" width="720" height="720" />
+      <span class="jar-draw-shade" aria-hidden="true"></span>
+      <span class="jar-draw-copy"><small>нажми на банку</small><strong>ВЫТЯНУТЬ</strong></span>
+    </button>
+  `;
+}
+
+function renderJarReveal(): string {
+  const intro = jarRevealMode === "intro";
+  const mirrored = !intro && jarRevealCount % 2 === 0;
+  return `
+    <div class="jar-reveal ${jarRevealMode === "lucky" ? "jar-reveal-lucky" : ""} ${mirrored ? "jar-reveal-mirrored" : ""}" role="status" aria-label="Достаём записку">
+      <video id="jar-reveal-video" src="${intro ? jarIntroUrl : jarQuickUrl}" poster="${jarPosterUrl}" playsinline preload="auto"></video>
+      <span class="jar-reveal-glow" aria-hidden="true"></span>
+      ${jarRevealMode === "lucky" ? '<span class="paper-spark paper-spark-one" aria-hidden="true"></span><span class="paper-spark paper-spark-two" aria-hidden="true"></span><span class="paper-spark paper-spark-three" aria-hidden="true"></span>' : ""}
+      <span class="sr-only">Достаём и разворачиваем вопрос</span>
+    </div>
+  `;
 }
 
 function renderQuestionCard(card: Card): string {
@@ -546,17 +662,14 @@ function renderGame(): void {
           <div><span>Сейчас отвечает</span><h1 id="turn-title">${escapeHtml(player.name)}</h1></div>
           <button class="button button-quiet" data-action="leave-game">Выйти</button>
         </div>
-        <div class="card-zone">
+        <div class="card-zone" ${jarRevealMode !== "idle" ? 'aria-busy="true"' : ""}>
           ${session.alternativeCardIds.length === 2
             ? renderChoiceCards()
             : cardRevealed
               ? renderQuestionCard(card)
-              : `
-                <button class="card-cover" data-action="reveal-card">
-                  <span class="cover-mark" aria-hidden="true"><span></span></span>
-                  <strong>Открыть вопрос</strong>
-                </button>
-              `}
+              : jarRevealMode === "idle"
+                ? renderJarCover()
+                : renderJarReveal()}
         </div>
         <div class="game-controls ${cardRevealed ? "controls-visible" : ""}">
           <div class="timer-box">
@@ -575,18 +688,14 @@ function renderGame(): void {
 
   root.querySelector<HTMLElement>("[data-action='leave-game']")?.addEventListener("click", () => {
     if (window.confirm("Выйти на главную? Текущий круг сохранится.")) {
+      cancelJarReveal();
       stopTimer();
       screen = "welcome";
       render();
     }
   });
   root.querySelector<HTMLElement>("[data-action='reveal-card']")?.addEventListener("click", () => {
-    cardRevealed = true;
-    resetTimer();
-    playSound("reveal");
-    render();
-    startTimer();
-    announce(`Вопрос для ${player.name}: ${card.text}`);
+    beginJarReveal(player.name, card.text);
   });
   root.querySelector<HTMLElement>("[data-action='complete-turn']")?.addEventListener("click", completeTurn);
   root.querySelector<HTMLElement>("[data-action='reset-timer']")?.addEventListener("click", () => {
@@ -750,7 +859,7 @@ function openCategoryDialog(): void {
     <div class="dialog-panel">
       <button class="dialog-close" data-close-dialog aria-label="Закрыть">×</button>
       <h2>О чём хочется вопрос?</h2>
-      <p>Выбери тему, и карточка сменится.</p>
+      <p>Выбери тему, и вопрос сменится.</p>
       <div class="dialog-options dialog-options-categories">
         ${CATEGORIES.map((category) => `<button data-category="${category}">${categoryNames[category]}</button>`).join("")}
       </div>
@@ -888,9 +997,9 @@ function renderEditor(): void {
     <section class="editor" aria-labelledby="editor-title">
       <div class="page-heading">
         <button class="text-button" data-action="back-from-tool">Назад</button>
-        <p class="section-kicker">Локальная колода</p>
-        <h1 id="editor-title">Вопросы вашего круга</h1>
-        <p>Свои карточки остаются только в этом браузере. Встроенную колоду можно скрывать, но исходный текст не изменяется.</p>
+        <p class="section-kicker">Своя банка</p>
+        <h1 id="editor-title">Вопросы вашей компании</h1>
+        <p>Свои вопросы остаются только в этом браузере. Встроенные можно скрывать, но их исходный текст не изменяется.</p>
       </div>
       <div class="editor-grid">
         <form class="custom-card-form" id="custom-card-form">
@@ -1057,8 +1166,8 @@ function renderSettings(): void {
           <option value="120" ${data.preferences.timerSeconds === 120 ? "selected" : ""}>120 секунд</option>
           <option value="0" ${data.preferences.timerSeconds === 0 ? "selected" : ""}>Выключен</option>
         </select></label>
-        <label class="setting-row"><span><strong>Звуки</strong><small>Короткие сигналы при открытии вопроса, новом ходе и окончании времени.</small></span><input name="sound" type="checkbox" ${data.preferences.soundEnabled ? "checked" : ""} /></label>
-        <label class="setting-row"><span><strong>Анимации</strong><small>Движение карточек и элементов игры.</small></span><input name="motion" type="checkbox" ${data.preferences.motionEnabled ? "checked" : ""} /></label>
+        <label class="setting-row"><span><strong>Звуки</strong><small>Шорох бумаги, звон банки и короткие сигналы игры.</small></span><input name="sound" type="checkbox" ${data.preferences.soundEnabled ? "checked" : ""} /></label>
+        <label class="setting-row"><span><strong>Анимации</strong><small>Банка, записки и переходы между ходами.</small></span><input name="motion" type="checkbox" ${data.preferences.motionEnabled ? "checked" : ""} /></label>
         <button class="button button-primary" type="submit">Сохранить</button>
       </form>
       <div class="data-panel">

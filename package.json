@@ -1,8 +1,8 @@
 {
-  "name": "teply-krug",
+  "name": "dostavay",
   "private": true,
   "version": "1.0.0",
-  "description": "A host-controlled Russian conversation game for warm Zoom evenings.",
+  "description": "A host-controlled Russian Zoom game built around drawing questions from a jar.",
   "license": "MIT",
   "homepage": "https://kiku-jw.github.io/teply-krug/",
   "repository": {

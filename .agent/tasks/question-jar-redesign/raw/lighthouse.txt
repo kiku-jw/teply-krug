@@ -1,0 +1,10 @@
+Local production Lighthouse at /teply-krug/
+
+- Performance: 100
+- Accessibility: 100
+- Best practices: 100
+- SEO: 100
+- Largest Contentful Paint: 1055 ms
+- Cumulative Layout Shift: 0
+- Total Blocking Time: 0 ms
+- Requests: 5, all to the local production origin

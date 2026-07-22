@@ -1,0 +1,10 @@
+Published jar media inspection
+
+- question-jar-intro.mp4: H.264 720x720, AAC stereo, 3.605 seconds, 454695 bytes
+- question-jar-quick.mp4: H.264 720x720, AAC stereo, 1.600 seconds, 274520 bytes
+- question-jar-poster.webp: 720x720, 42316 bytes
+- Combined media size: 771531 bytes
+- Intro audio: mean -28.6 dB, max -1.3 dB
+- Quick audio: mean -29.5 dB, max -4.6 dB
+- Seedance generation: one Seedance 2.0 Mini job, 12.5 credits
+- Higgsfield credits after generation: 192.5

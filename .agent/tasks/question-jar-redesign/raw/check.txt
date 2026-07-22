@@ -1,0 +1,8 @@
+npm run check
+
+PASS
+
+- Vitest: 3 files, 21 tests passed.
+- TypeScript: strict no-emit check passed.
+- Vite: production build passed.
+- Output: HTML 0.87 kB, CSS 28.42 kB, JavaScript 81.16 kB before gzip reporting.

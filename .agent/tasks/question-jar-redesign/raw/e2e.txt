@@ -1,0 +1,8 @@
+npm run test:e2e -- --reporter=line
+
+PASS
+
+- Desktop and 390x844 mobile projects exercised.
+- 25 tests passed.
+- 1 fixed-viewport visual test was intentionally skipped on mobile.
+- The first/quick/fifth draw states, media event completion, sound muting, reduced-motion bypass, two-person flow, timer, abilities, editor, checkpoint, resume, and finish flows passed.

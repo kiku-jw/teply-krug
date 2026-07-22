@@ -1,0 +1,15 @@
+{
+  "taskId": "question-jar-redesign",
+  "status": "PASS",
+  "acceptanceCriteria": [
+    { "id": "AC1", "status": "PASS", "proof": "New runtime brand, metadata, favicon, README, screenshots, and old-title regression assertion" },
+    { "id": "AC2", "status": "PASS", "proof": "3.605-second first draw, 1.600-second later draw, and event-driven reveal test" },
+    { "id": "AC3", "status": "PASS", "proof": "Mirrored quick draw and every-fifth-draw paper accent test" },
+    { "id": "AC4", "status": "PASS", "proof": "Blank generated paper, accessible HTML question, and safe playback fallbacks" },
+    { "id": "AC5", "status": "PASS", "proof": "Sound preference, motion preference, and reduced-motion tests" },
+    { "id": "AC6", "status": "PASS", "proof": "771531-byte local media set and same-origin-only Lighthouse request list" },
+    { "id": "AC7", "status": "PASS", "proof": "Complete existing game flow regression suite on desktop and mobile" },
+    { "id": "AC8", "status": "PASS", "proof": "Fresh desktop, presentation, and 390x844 visual inspection" },
+    { "id": "AC9", "status": "PASS", "proof": "21 unit/content tests, 25 E2E tests, strict build, audit, media checks, diff hygiene, and Lighthouse 100/100/100/100" }
+  ]
+}
