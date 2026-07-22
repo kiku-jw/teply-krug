@@ -15,6 +15,14 @@ The deck is for a Russian-speaking Zoom evening among young Jehovah's Witnesses 
 
 Use recognisable details such as cities, food, languages, roads, hospitality, congregations, and ministry in different places. Do not assume that everyone currently lives in Ukraine, has a stable home, drives a car, travels safely, or wants to discuss war, displacement, or loss.
 
+## Theme progression
+
+- Open with playful Bible prompts, funny childhood memories, familiar food, and stories that are easy to tell without preparation.
+- Move later into how the truth entered someone's life, what helped them love Jehovah, gratitude to Jehovah, and moments when they felt the love of the brotherhood.
+- Use the new world for warm personal imagination: a home, a hobby, animals, places, and things friends would enjoy doing together. Make it clear that these are personal hopes, not Bible facts.
+- Phrase spiritual-history questions so that both someone raised in the truth and someone who learned it later can answer naturally.
+- Keep deeper cards personal but voluntary. They should invite a real story without demanding details about trauma, loss, family conflict, or past wrongdoing.
+
 ## Avoid
 
 - therapy language: abstract questions about personal growth, emotional regulation, or hidden qualities;

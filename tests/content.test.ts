@@ -86,4 +86,57 @@ describe("built-in deck", () => {
     expect(contextualCards.length).toBeGreaterThanOrEqual(12);
     expect(contextualCards.length).toBeLessThanOrEqual(36);
   });
+
+  it("keeps the approved childhood and spiritual themes present without taking over the deck", () => {
+    const childhoodCards = builtInCards.filter((card) => /детств|ребён|маленьк|мультфильм|школ/iu.test(card.text));
+    const newWorldCards = builtInCards.filter((card) => /новом мире|новый мир/iu.test(card.text));
+    const spiritualStoryCards = builtInCards.filter((card) => /истин|Иегов|братств/iu.test(card.text));
+
+    expect(childhoodCards.length).toBeGreaterThanOrEqual(20);
+    expect(childhoodCards.length).toBeLessThanOrEqual(48);
+    expect(newWorldCards.length).toBeGreaterThanOrEqual(8);
+    expect(newWorldCards.length).toBeLessThanOrEqual(20);
+    expect(spiritualStoryCards.length).toBeGreaterThanOrEqual(12);
+  });
+
+  it("keeps the most personal spiritual questions out of the opening stage", () => {
+    const deeperCards = builtInCards.filter((card) =>
+      /истина появилась|полюбить Иегову|благодарен Иегове|любовь братства/iu.test(card.text),
+    );
+
+    expect(deeperCards.length).toBeGreaterThanOrEqual(5);
+    deeperCards.forEach((card) => expect(card.stage).not.toBe("spark"));
+  });
+
+  it("keeps the approved anchor questions in the deck", () => {
+    const deck = builtInCards.map((card) => card.text);
+
+    expect(deck).toEqual(
+      expect.arrayContaining([
+        "Что ты однажды устроил в детстве, от чего взрослые были в шоке?",
+        "Расскажи, как истина появилась в твоей жизни.",
+        "Что помогло тебе по-настоящему полюбить Иегову?",
+        "За что ты сейчас особенно благодарен Иегове?",
+        "Когда ты особенно ощутил любовь братства?",
+        "Какому ремеслу или хобби ты хотел бы научиться в новом мире?",
+        "Какой дом ты хотел бы построить в новом мире и что было бы рядом?",
+      ]),
+    );
+  });
+
+  it("does not bring back the abstract prompts removed by the editorial pass", () => {
+    const deck = builtInCards.map((card) => card.text).join("\n");
+    const rejectedFragments = [
+      "Что после тяжёлого дня помогает тебе больше",
+      "Как тебе удаётся не терять связь",
+      "Что делает видеозвонок похожим",
+      "Что о человеке быстрее узнаёшь",
+      "по одному качеству, которое цените в напарнике",
+      "всего из пяти слов",
+      "по которому он так скучал",
+      "а вокруг никто не понимает зачем",
+    ];
+
+    rejectedFragments.forEach((fragment) => expect(deck).not.toContain(fragment));
+  });
 });
