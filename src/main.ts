@@ -29,9 +29,9 @@ const liveRegion: HTMLDivElement = liveRegionElement;
 let data = loadStoredData();
 let screen: Screen = "welcome";
 let returnScreen: Screen = "welcome";
-let draftNames = data.preferences.savedNames.length >= 6
+let draftNames = data.preferences.savedNames.length >= 2
   ? [...data.preferences.savedNames]
-  : ["", "", "", "", "", ""];
+  : ["", ""];
 let editingCustomId: string | null = null;
 let editorSearch = "";
 let cardRevealed = false;
@@ -197,7 +197,7 @@ function bindGlobalActions(): void {
 }
 
 function renderWelcome(): void {
-  const canContinue = data.session !== null && data.session.players.length >= 6;
+  const canContinue = data.session !== null && data.session.players.length >= 2;
   const seenCount = data.preferences.seenCardIds.length;
   renderShell(`
     <section class="welcome" aria-labelledby="welcome-title">
@@ -210,7 +210,7 @@ function renderWelcome(): void {
         </div>
         <div class="welcome-facts" aria-label="Как устроена игра">
           <div><strong>360</strong><span>вопросов и заданий</span></div>
-          <div><strong>6-12</strong><span>человек</span></div>
+          <div><strong>2-12</strong><span>человек</span></div>
           <div><strong>0</strong><span>очков</span></div>
         </div>
       </div>
@@ -220,7 +220,7 @@ function renderWelcome(): void {
         <div class="sample-card">
           <p>С кем из библейских персонажей ты бы охотно отправился в путешествие?</p>
         </div>
-        <div class="scene-chip chip-left"><strong>6-12</strong><span>человек</span></div>
+        <div class="scene-chip chip-left"><strong>2-12</strong><span>человек</span></div>
         <div class="scene-chip chip-right"><strong>${seenCount}</strong><span>уже сыграно</span></div>
       </div>
     </section>
@@ -228,9 +228,9 @@ function renderWelcome(): void {
 
   root.querySelector<HTMLElement>("[data-action='new-game']")?.addEventListener("click", () => {
     data.session = null;
-    draftNames = data.preferences.savedNames.length >= 6
+    draftNames = data.preferences.savedNames.length >= 2
       ? [...data.preferences.savedNames]
-      : ["", "", "", "", "", ""];
+      : ["", ""];
     screen = "setup";
     render();
   });
@@ -253,8 +253,8 @@ function validNames(): string[] {
 }
 
 function setupValidationMessage(names: string[]): string {
-  if (names.length < 6) {
-    return `Добавьте ещё ${6 - names.length}.`;
+  if (names.length < 2) {
+    return "Добавьте хотя бы ещё одного человека.";
   }
   if (names.length > 12) {
     return "В одном круге может быть не больше 12 человек.";

@@ -15,6 +15,9 @@ test("captures a revealed game card", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: "Собрать круг" }).click();
   const names = ["Аня", "Борис", "Вера", "Глеб", "Даша", "Егор"];
   for (let index = 0; index < names.length; index += 1) {
+    if (index >= 2) {
+      await page.getByRole("button", { name: "Добавить имя" }).click();
+    }
     const name = names[index];
     if (name !== undefined) {
       await page.locator("[data-player-name]").nth(index).fill(name);

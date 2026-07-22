@@ -5,7 +5,7 @@ async function startGame(page: import("@playwright/test").Page, count = 6): Prom
   await page.getByRole("button", { name: "Собрать круг" }).click();
   const inputs = page.locator("[data-player-name]");
   for (let index = 0; index < count; index += 1) {
-    if (index >= 6) {
+    if (index >= 2) {
       await page.getByRole("button", { name: "Добавить имя" }).click();
     }
     await inputs.nth(index).fill(`Игрок ${index + 1}`);
@@ -13,6 +13,15 @@ async function startGame(page: import("@playwright/test").Page, count = 6): Prom
   await page.getByRole("button", { name: "Начать игру" }).click();
   await expect(page.getByRole("heading", { name: "Игрок 1" })).toBeVisible();
 }
+
+test("two people can start a small circle", async ({ page }) => {
+  await startGame(page, 2);
+  for (let index = 0; index < 2; index += 1) {
+    await page.getByRole("button", { name: "Открыть вопрос" }).click();
+    await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
+  }
+  await expect(page.getByRole("heading", { name: "Все ответили" })).toBeVisible();
+});
 
 test("host starts a six-player circle and advances in order", async ({ page }) => {
   await startGame(page);
