@@ -42,4 +42,48 @@ describe("built-in deck", () => {
     expect(deck).not.toContain("Придумай группе добрый вызов до следующей встречи.");
     expect(deck).not.toContain("Назови одно качество каждого из двух участников, которое пригодилось бы в совместном служении.");
   });
+
+  it("does not contain the prompts reported after live play", () => {
+    const deck = builtInCards.map((card) => card.text);
+    const rejected = [
+      "Покажи без слов, как ты ищешь место на переполненной парковке.",
+      "Расскажи о поездке, которая пошла не по плану, но всё равно удалась.",
+      "Какое время дня для служения тебе нравится больше всего?",
+      "Как совместное служение помогло тебе лучше узнать друга?",
+      "Какой совместный труд особенно сблизил тебя с кем-то?",
+      "Какой пример напарника научил тебя говорить проще?",
+      "Попроси всех за пять секунд найти в кадре предмет одного цвета.",
+      "Начни медленную волну, которую повторит весь круг.",
+      "Что делает перерыв после служения особенно приятным?",
+      "Разыграйте втроём сцену, где все уступают друг другу место.",
+    ];
+
+    rejected.forEach((prompt) => expect(deck).not.toContain(prompt));
+  });
+
+  it("keeps group cards compatible with a two-person Zoom call", () => {
+    const groupDeck = builtInCards
+      .filter((card) => card.mode !== "answer")
+      .map((card) => card.text.toLocaleLowerCase("ru-RU"))
+      .join("\n");
+    const roomOnlyFragments = [
+      "человеку слева",
+      "человеку справа",
+      "втроём",
+      "трем участникам",
+      "трём участникам",
+      "двух участников",
+      "двум участникам",
+      "уступают друг другу место",
+      "медленную волну",
+    ];
+
+    roomOnlyFragments.forEach((fragment) => expect(groupDeck).not.toContain(fragment));
+  });
+
+  it("includes Ukraine as lived context without making every card about it", () => {
+    const contextualCards = builtInCards.filter((card) => /украин|україн|киев|київ|львов|львів|одесс|одес|карпат/i.test(card.text));
+    expect(contextualCards.length).toBeGreaterThanOrEqual(12);
+    expect(contextualCards.length).toBeLessThanOrEqual(36);
+  });
 });
