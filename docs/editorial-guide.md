@@ -5,6 +5,7 @@ The deck is for a Russian-speaking Zoom evening among young Jehovah's Witnesses 
 ## Every card must
 
 - sound natural when one friend reads it aloud to another;
+- address any player naturally without assuming gender; prefer present tense, infinitives, or impersonal phrasing over forms such as "ты хотел" or "ты сделала";
 - give a concrete memory, choice, scene, or action instead of asking for self-analysis;
 - work through a webcam and microphone with only two participants;
 - be understandable without explaining the author's intention;
@@ -32,6 +33,7 @@ Use recognisable details such as cities, food, languages, roads, hospitality, co
 - arbitrary restrictions that make a simple story harder to tell;
 - jokes at the expense of a person met in the ministry;
 - invented spiritual lessons or speculative claims presented as Bible facts.
+- gender workarounds such as "сделал(а)" and singular group roles followed by "он" or "его"; rewrite the whole sentence instead.
 
 ## Quick read-aloud check
 

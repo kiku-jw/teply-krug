@@ -101,7 +101,7 @@ test("host creates and edits a local card", async ({ page }) => {
   await expect(editedText).toBeVisible();
 
   await page.getByLabel("Поиск").fill("украинское блюдо");
-  const builtIn = page.locator(".library-card").filter({ hasText: "Какое украинское блюдо ты всегда рад увидеть на столе?" });
+  const builtIn = page.locator(".library-card").filter({ hasText: "Какое украинское блюдо тебе всегда приятно видеть на столе?" });
   await builtIn.getByRole("button", { name: "Скрыть" }).click();
   await expect(builtIn.getByRole("button", { name: "Вернуть" })).toBeVisible();
   await page.getByRole("button", { name: "Вернуть скрытые (1)" }).click();
