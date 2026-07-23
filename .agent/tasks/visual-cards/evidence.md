@@ -60,5 +60,6 @@
 - `raw/e2e.txt`
 - `raw/media.txt`
 - `raw/preflight.txt`
+- `raw/visual-audit.md`
 - Fresh screenshots are regenerated under ignored `test-results/` by
   `tests/e2e/visual.spec.ts`.
