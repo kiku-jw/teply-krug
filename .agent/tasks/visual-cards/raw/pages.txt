@@ -1,0 +1,30 @@
+GitHub Pages live readback
+
+- Workflow: `Deploy GitHub Pages`
+- Feature run: `30042831700` for `a8f63fffb956b331aa014334a145377da317093b`
+- Follow-up run: `30042975189` for `06aa4ab25c3f10dde7b995aa120b4fc2f2fa684d`
+- Live URL: `https://kiku-jw.github.io/teply-krug/`
+
+HTML
+
+- `200 OK`
+- Title: `Доставай! — банка вопросов`
+- Description: `Доставай!: банка вопросов и заданий для компании в Zoom.`
+- Current bundle references:
+  - `/teply-krug/assets/index-BTr1t9Kv.js`
+  - `/teply-krug/assets/index-DyiPLOB1.css`
+
+Live asset checks
+
+- `https://kiku-jw.github.io/teply-krug/assets/index-BTr1t9Kv.js` -> `200 OK`, `content-length: 85390`
+- `https://kiku-jw.github.io/teply-krug/assets/index-DyiPLOB1.css` -> `200 OK`, `content-length: 30573`
+- `https://kiku-jw.github.io/teply-krug/media/visual-cards/childhood-objects.webp` -> `200 OK`, `content-type: image/webp`, `content-length: 41062`
+
+Live bundle content check
+
+- The published JS bundle contains:
+  - `Выберите по одному дереву для дома в новом мире. Почему именно это?`
+  - `Кому из компании доверите провести мастер-класс по одному из этих занятий? По какому?`
+  - `Выбери картинку и покажи без слов библейского персонажа, на которого она намекает. Остальные угадывают.`
+  - `Угадайте четыре предмета. Какой из них напомнил тебе какую-нибудь историю?`
+  - `./media/visual-cards/childhood-objects.webp`
