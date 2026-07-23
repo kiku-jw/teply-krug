@@ -1,0 +1,25 @@
+Preflight
+
+- Repo: /Users/nick/Documents/Codex/2026-07-22/zoom-github-pages-grill-me-20
+- Branch: main tracking origin/main
+- Remote: https://github.com/kiku-jw/teply-krug.git
+- Canonical issue: https://github.com/kiku-jw/teply-krug/issues/6
+
+git status --short --branch
+
+- `## main...origin/main`
+- modified: `src/content/cards.ts`, `src/game.ts`, `src/main.ts`, `src/styles.css`, `src/types.ts`, `tests/content.test.ts`, `tests/e2e/game.spec.ts`, `tests/e2e/visual.spec.ts`, `tests/game.test.ts`
+- untracked: `.agent/tasks/visual-cards/`, `public/media/visual-cards/`
+
+git branch -vv
+
+- `main 4a2e8fb [origin/main] fix: make reported questions sound natural`
+- note: local Git reported `warning: ignoring ref with broken name refs/heads/main 2`
+
+Recent history
+
+- `4a2e8fb fix: make reported questions sound natural`
+- `82c08d0 docs: record question jar release proof`
+- `2aaeb0d feat: make the question jar session flow naturally`
+- `14f7b0d Redesign the game around a question jar`
+- `dd206f2 Make the question deck gender neutral`

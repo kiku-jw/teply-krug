@@ -4,6 +4,11 @@ export type CardMode = "answer" | "perform" | "group";
 export type SessionMode = "quick" | "standard" | "open";
 export type Screen = "welcome" | "setup" | "game" | "checkpoint" | "finish" | "editor" | "settings";
 
+export interface CardVisual {
+  src: string;
+  alt: string;
+}
+
 export interface Card {
   id: string;
   stage: Stage;
@@ -12,6 +17,7 @@ export interface Card {
   text: string;
   timerSeconds: number;
   source: "builtIn" | "custom";
+  visual?: CardVisual;
 }
 
 export interface Player {

@@ -47,12 +47,23 @@ let jarRevealMode: "idle" | "intro" | "shuffle" | "pop" | "unfold" = "idle";
 let jarRevealCount = 0;
 let jarRevealRun = 0;
 let jarRevealFallbackHandle: number | null = null;
+const preloadedVisualUrls = new Set<string>();
 
 type SoundCue = "paper" | "turn" | "glass" | "timer";
 
 const jarPosterUrl = "./media/question-jar-poster.webp";
 const jarIntroUrl = "./media/question-jar-intro.mp4";
 const jarQuickUrl = "./media/question-jar-quick.mp4";
+
+function preloadCardVisual(card: Card): void {
+  const src = card.visual?.src;
+  if (src === undefined || preloadedVisualUrls.has(src)) {
+    return;
+  }
+  const image = new Image();
+  image.src = src;
+  preloadedVisualUrls.add(src);
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -129,6 +140,11 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
     return null;
   }
   const previousCardId = session.recentCardIds.at(-1) ?? null;
+  const visualRecentlyDrawn = session.recentCardIds.some((id) => cardById(id)?.visual !== undefined);
+  const preferVisual = category === undefined
+    && session.turnsCompleted > 0
+    && (session.turnsCompleted + 1) % 6 === 0
+    && !visualRecentlyDrawn;
   const result = drawCard(
     enabledCards(),
     session.round,
@@ -137,12 +153,14 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
     category,
     excludedCardIds,
     previousCardId,
+    preferVisual,
   );
   data.preferences.seenCardIds = result.seenCardIds;
   session.currentCardId = result.card?.id ?? null;
   session.partnerPlayerId = null;
   if (result.card !== null) {
     session.recentCardIds = [...session.recentCardIds, result.card.id].slice(-4);
+    preloadCardVisual(result.card);
   }
   cancelJarReveal();
   cardRevealed = false;
@@ -608,7 +626,12 @@ function renderQuestionCard(card: Card): string {
       : "",
   ].filter((context) => context.length > 0);
   return `
-    <article class="question-card ${card.mode === "perform" ? "question-card-perform" : ""}">
+    <article class="question-card ${card.mode === "perform" ? "question-card-perform" : ""} ${card.visual === undefined ? "" : "question-card-has-visual"}">
+      ${card.visual === undefined
+        ? ""
+        : `<figure class="question-visual">
+            <img data-card-visual src="${escapeHtml(card.visual.src)}" alt="${escapeHtml(card.visual.alt)}" width="900" height="600" decoding="async" />
+          </figure>`}
       <p>${escapeHtml(card.text)}</p>
       ${contexts.length > 0 ? `<div class="card-context">${contexts.map((context) => `<span>${context}</span>`).join("")}</div>` : ""}
     </article>
@@ -639,6 +662,7 @@ function renderGame(): void {
     renderGame();
     return;
   }
+  preloadCardVisual(card);
 
   renderShell(`
     <section class="game-layout" aria-labelledby="turn-title">
@@ -677,6 +701,13 @@ function renderGame(): void {
     </section>
     <dialog class="game-dialog" id="game-dialog"></dialog>
   `, { compactHeader: true, gameHeader: true });
+
+  const cardVisual = root.querySelector<HTMLImageElement>("[data-card-visual]");
+  cardVisual?.addEventListener("error", () => {
+    const cardElement = cardVisual.closest(".question-card");
+    cardVisual.closest(".question-visual")?.remove();
+    cardElement?.classList.remove("question-card-has-visual");
+  });
 
   root.querySelector<HTMLElement>("[data-action='leave-game']")?.addEventListener("click", () => {
     if (window.confirm("Выйти на главную? Текущий круг сохранится.")) {

@@ -91,6 +91,51 @@ describe("game model", () => {
     expect(result.card?.id).toBe("answer");
   });
 
+  it("prefers a visual card only when the hidden cadence requests one", () => {
+    const textCard = card("text", "spark", "personal", "answer", "Какой запах сразу напоминает тебе о доме?");
+    const visualCard: Card = {
+      ...card("visual", "spark", "stories", "answer", "Выбери знакомый кадр и расскажи, что вспомнилось."),
+      visual: {
+        src: "./media/visual-cards/example.webp",
+        alt: "Несколько знакомых мирных сцен для выбора.",
+      },
+    };
+    const pool = [visualCard, textCard];
+
+    expect(drawCard(pool, 1, [], () => 0, undefined, [], null, false).card?.id).toBe("text");
+    expect(drawCard(pool, 1, [], () => 0, undefined, [], null, true).card?.id).toBe("visual");
+  });
+
+  it("does not place two visual cards next to each other", () => {
+    const previous: Card = {
+      ...card("previous", "spark", "personal", "answer", "Выбери предмет и расскажи связанную с ним историю."),
+      visual: {
+        src: "./media/visual-cards/previous.webp",
+        alt: "Несколько предметов для выбора и разговора.",
+      },
+    };
+    const nextVisual: Card = {
+      ...card("next-visual", "spark", "stories", "answer", "Выбери кадр и расскажи, что он тебе напоминает."),
+      visual: {
+        src: "./media/visual-cards/next.webp",
+        alt: "Несколько мирных сцен для выбора и разговора.",
+      },
+    };
+    const textCard = card("text", "spark", "bible", "answer", "Какой библейский рассказ тебе особенно нравится?");
+
+    const result = drawCard(
+      [previous, nextVisual, textCard],
+      1,
+      ["previous"],
+      () => 0,
+      undefined,
+      [],
+      "previous",
+      true,
+    );
+    expect(result.card?.id).toBe("text");
+  });
+
   it("plans whole rounds around the requested duration", () => {
     expect(targetTurnsForMode("quick", 6, 75)).toBe(12);
     expect(targetTurnsForMode("standard", 6, 75)).toBe(18);

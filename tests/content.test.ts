@@ -34,6 +34,24 @@ describe("built-in deck", () => {
     }
   });
 
+  it("keeps exactly twelve local visual prompts with safe descriptive text", () => {
+    const visualCards = builtInCards.filter((card) => card.visual !== undefined);
+    const bannedVisualTerms = /крест|храм|церк|собор|купол|икон|нимб|алтар|чётки|священ|военн|флаг|герб|войн/iu;
+
+    expect(visualCards).toHaveLength(12);
+    visualCards.forEach((card) => {
+      expect(card.visual?.src).toMatch(/^\.\/media\/visual-cards\/[a-z-]+\.webp$/u);
+      expect(card.visual?.alt.length).toBeGreaterThanOrEqual(24);
+      expect(card.visual?.alt).not.toMatch(bannedVisualTerms);
+      expect(card.text).not.toMatch(/[—–]/u);
+    });
+
+    const protectedSpiritualCards = builtInCards.filter((card) =>
+      /истина появилась|полюбить Иегову|благодарить Иегову|любовь братства/iu.test(card.text),
+    );
+    protectedSpiritualCards.forEach((card) => expect(card.visual).toBeUndefined());
+  });
+
   it("varies the spoken opening instead of leaning on two generated templates", () => {
     const tellOpenings = builtInCards.filter((card) => card.text.startsWith("Расскажи"));
     const whichOpenings = builtInCards.filter((card) => /^(Какой|Какая|Какое|Какую|Какие)\b/u.test(card.text));
@@ -133,7 +151,7 @@ describe("built-in deck", () => {
         "За что тебе сейчас особенно хочется благодарить Иегову?",
         "В какой момент любовь братства ощущалась особенно сильно?",
         "Какое ремесло или хобби хочется освоить в новом мире?",
-        "Как будет выглядеть твой дом в новом мире и что будет рядом?",
+        "Где из этих мест тебе хотелось бы жить в новом мире? Что было бы рядом с домом?",
       ]),
     );
   });

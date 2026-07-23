@@ -97,6 +97,37 @@ test("the first question is Bible-based and session state uses the new model", a
   });
 });
 
+test("an illustrated note appears on the hidden cadence without repeating", async ({ page }) => {
+  await startGame(page, 6);
+  for (let turn = 0; turn < 5; turn += 1) {
+    await reveal(page);
+    await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
+  }
+
+  await reveal(page);
+  await expect(page.locator("[data-card-visual]")).toBeVisible();
+  await expect(page.locator("[data-card-visual]")).toHaveAttribute("src", /\/visual-cards\/.+\.webp$/u);
+
+  await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
+  await page.getByRole("button", { name: "Ещё круг" }).click();
+  await reveal(page);
+  await expect(page.locator("[data-card-visual]")).toHaveCount(0);
+});
+
+test("a failed visual asset falls back to the complete text question", async ({ page }) => {
+  await page.route("**/media/visual-cards/*.webp", (route) => route.abort());
+  await startGame(page, 6);
+  for (let turn = 0; turn < 5; turn += 1) {
+    await reveal(page);
+    await page.getByRole("button", { name: "ДАЛЬШЕ", exact: true }).click();
+  }
+
+  await reveal(page);
+  await expect(page.locator("[data-card-visual]")).toHaveCount(0);
+  await expect(page.locator(".question-card p")).toBeVisible();
+  await expect(page.getByRole("button", { name: "ДАЛЬШЕ", exact: true })).toBeEnabled();
+});
+
 test("a quick twelve-person session reaches a natural finish checkpoint", async ({ page }) => {
   await startGame(page, 12, false, "quick");
   for (let index = 0; index < 12; index += 1) {

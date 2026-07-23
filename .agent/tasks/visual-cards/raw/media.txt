@@ -1,0 +1,21 @@
+Visual-card media inspection
+
+- 12 local WebP files under `public/media/visual-cards/`
+- Every file is 900x600
+- Combined size: 984556 bytes
+- Aggregate budget check: PASS (< 1800000 bytes)
+
+Files
+
+- bible-charades.webp
+- bible-david-clue.webp
+- bible-joseph-clue.webp
+- childhood-evidence.webp
+- childhood-objects.webp
+- everyday-closeups.webp
+- hobby-table.webp
+- new-world-homes.webp
+- new-world-trees.webp
+- ukraine-memories.webp
+- ukraine-weekend.webp
+- ukrainian-foods.webp

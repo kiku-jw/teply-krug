@@ -79,7 +79,12 @@ function followsSmoothly(card: Card, previous: Card | null, category?: Category)
   const repeatsDeepCard = isDeepCard(card) && isDeepCard(previous);
   const repeatsActiveMode = card.mode !== "answer" && card.mode === previous.mode;
   const repeatsOpening = openingKey(card.text) === openingKey(previous.text);
-  return !repeatsCategory && !repeatsDeepCard && !repeatsActiveMode && !repeatsOpening;
+  const repeatsVisual = card.visual !== undefined && previous.visual !== undefined;
+  return !repeatsCategory
+    && !repeatsDeepCard
+    && !repeatsActiveMode
+    && !repeatsOpening
+    && !repeatsVisual;
 }
 
 export function drawCard(
@@ -90,6 +95,7 @@ export function drawCard(
   category?: Category,
   excludedCardIds: string[] = [],
   previousCardId: string | null = null,
+  preferVisual = false,
 ): DrawResult {
   const stages = allowedStages(round);
   const eligible = cards.filter((card) =>
@@ -110,7 +116,11 @@ export function drawCard(
 
   const previous = cards.find((card) => card.id === previousCardId) ?? null;
   const smoothlyPaced = available.filter((card) => followsSmoothly(card, previous, category));
-  const selectionPool = smoothlyPaced.length > 0 ? smoothlyPaced : available;
+  const pacedPool = smoothlyPaced.length > 0 ? smoothlyPaced : available;
+  const preferredPool = pacedPool.filter((card) =>
+    preferVisual ? card.visual !== undefined : card.visual === undefined
+  );
+  const selectionPool = preferredPool.length > 0 ? preferredPool : pacedPool;
   const selected = selectionPool[Math.floor(random() * selectionPool.length)] ?? null;
   if (selected === null) {
     return { card: null, recycled, seenCardIds: nextSeen };

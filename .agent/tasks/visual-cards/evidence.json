@@ -1,0 +1,16 @@
+{
+  "taskId": "visual-cards",
+  "status": "PASS",
+  "acceptanceCriteria": [
+    { "id": "AC1", "status": "PASS", "proof": "Exactly 12 mechanic-bearing visuals attached to the unchanged 360-card deck" },
+    { "id": "AC2", "status": "PASS", "proof": "Strict generation exclusions, rejected D-pad draft, and independent per-file symbolism audit" },
+    { "id": "AC3", "status": "PASS", "proof": "No flags, military, political, war, map, or current-conflict imagery" },
+    { "id": "AC4", "status": "PASS", "proof": "One tactile paper-collage language without baked text, logos, watermarks, or glow" },
+    { "id": "AC5", "status": "PASS", "proof": "Sixth-turn hidden cadence and consecutive-visual rejection covered by unit and browser tests" },
+    { "id": "AC6", "status": "PASS", "proof": "Desktop, 390 x 844, longest-prompt, alt-text, overflow, and failed-image coverage" },
+    { "id": "AC7", "status": "PASS", "proof": "Twelve local 900 x 600 WebP files total 984,556 bytes with no new dependency or runtime service" },
+    { "id": "AC8", "status": "PASS", "proof": "Natural gender-neutral Zoom prompts spanning childhood, Ukraine, Bible clues, hobbies, and the new world" },
+    { "id": "AC9", "status": "PASS", "proof": "Existing jar reveal retained with a short reduced-motion-safe image entrance and text fallback" },
+    { "id": "AC10", "status": "PASS", "proof": "29 local tests, 38 E2E tests, strict build, audit, media checks, visual captures, and fresh skeptical review" }
+  ]
+}

@@ -1,0 +1,9 @@
+npm run test:e2e
+
+PASS
+
+- Desktop and 390x844 mobile projects exercised.
+- 40 Playwright tests executed: 38 passed, 2 skipped by project guard.
+- Hidden sixth-turn illustrated note passed on desktop and mobile.
+- Failed-image fallback kept the full text question and active `ДАЛЬШЕ` control.
+- The longest illustrated prompt fit the mobile viewport without horizontal overflow.
