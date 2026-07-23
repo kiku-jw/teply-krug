@@ -10,6 +10,7 @@
     { "id": "AC7", "status": "PASS", "proof": ["tests/content.test.ts", "tests/copy.test.ts"] },
     { "id": "AC8", "status": "PASS", "proof": ["tests/e2e/game.spec.ts", "docs/media/finish.png"] },
     { "id": "AC9", "status": "PASS", "proof": ["tests/storage.test.ts", "tests/e2e/game.spec.ts"] },
-    { "id": "AC10", "status": "UNKNOWN", "proof": ["npm run check", "npm run test:e2e", ".agent/tasks/issue-5/raw/verification.md"] }
-  ]
+    { "id": "AC10", "status": "PASS", "proof": ["npm run check", "npm run test:e2e", "https://github.com/kiku-jw/teply-krug/actions/runs/29999544721", "https://kiku-jw.github.io/teply-krug/", ".agent/tasks/issue-5/raw/verification.md"] }
+  ],
+  "implementationRevision": "2aaeb0d34141b4a3ccf029f1199446e29223c491"
 }

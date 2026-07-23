@@ -1,8 +1,9 @@
 {
   "taskId": "issue-5",
-  "status": "UNKNOWN",
+  "status": "PASS",
   "verifiedAt": "2026-07-23",
-  "summary": "AC1-AC9 pass fresh local verification. AC10 is pending publication and live readback.",
+  "implementationRevision": "2aaeb0d34141b4a3ccf029f1199446e29223c491",
+  "summary": "AC1-AC10 pass fresh local, production-preview, workflow, and live GitHub Pages verification.",
   "findings": [],
   "residualRisks": [
     "Perceived sound volume and animation delight depend on the host device and Zoom share-sound settings."

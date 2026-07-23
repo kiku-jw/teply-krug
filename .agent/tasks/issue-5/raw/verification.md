@@ -43,3 +43,19 @@ Two actionable edge cases were found and fixed before this pass:
 Both now have E2E coverage. No unresolved high-severity finding remains.
 Residual risk: perceived sound volume and animation delight still depend on the
 host device and Zoom's share-sound setting.
+
+## Published revision
+
+- Implementation revision:
+  `2aaeb0d34141b4a3ccf029f1199446e29223c491`
+- Pages workflow:
+  `https://github.com/kiku-jw/teply-krug/actions/runs/29999544721`
+- Workflow result: build PASS, deploy PASS.
+- Live URL: `https://kiku-jw.github.io/teply-krug/`
+- Live HTML referenced the same production hashes as the verified local build:
+  - `assets/index-Dr9gK9tz.js`
+  - `assets/index-BYVyCftz.css`
+- A fresh live browser started a two-person session and revealed a Bible
+  question.
+- Live console: 0 messages, 0 errors, 0 warnings.
+- Live requests: all returned 200 or the expected 206 response for video.
