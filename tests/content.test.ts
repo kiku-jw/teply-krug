@@ -34,6 +34,14 @@ describe("built-in deck", () => {
     }
   });
 
+  it("varies the spoken opening instead of leaning on two generated templates", () => {
+    const tellOpenings = builtInCards.filter((card) => card.text.startsWith("Расскажи"));
+    const whichOpenings = builtInCards.filter((card) => /^(Какой|Какая|Какое|Какую|Какие)\b/u.test(card.text));
+
+    expect(tellOpenings.length).toBeLessThanOrEqual(35);
+    expect(tellOpenings.length + whichOpenings.length).toBeLessThanOrEqual(120);
+  });
+
   it("does not contain the reported abstract or confusing prompts", () => {
     const deck = builtInCards.map((card) => card.text).join("\n");
     expect(deck).not.toContain("Что ты умеешь ценить только после небольшой паузы?");

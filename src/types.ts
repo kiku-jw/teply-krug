@@ -1,7 +1,7 @@
 export type Stage = "spark" | "closer" | "together";
 export type Category = "personal" | "stories" | "service" | "bible" | "creative";
 export type CardMode = "answer" | "perform" | "group";
-export type AbilityId = "replace" | "partner" | "twoChoices" | "groupHelp" | "chooseCategory";
+export type SessionMode = "quick" | "standard" | "open";
 export type Screen = "welcome" | "setup" | "game" | "checkpoint" | "finish" | "editor" | "settings";
 
 export interface Card {
@@ -17,19 +17,18 @@ export interface Card {
 export interface Player {
   id: string;
   name: string;
-  abilities: AbilityId[];
-  usedAbilities: AbilityId[];
 }
 
 export interface SessionState {
   players: Player[];
   currentPlayerIndex: number;
-  stage: Stage;
   round: number;
   currentCardId: string | null;
-  alternativeCardIds: string[];
   partnerPlayerId: string | null;
-  groupHelpActive: boolean;
+  mode: SessionMode;
+  turnsCompleted: number;
+  targetTurns: number | null;
+  recentCardIds: string[];
 }
 
 export interface Preferences {
@@ -42,7 +41,7 @@ export interface Preferences {
 }
 
 export interface StoredData {
-  version: number;
+  version: 2;
   preferences: Preferences;
   session: SessionState | null;
   customCards: Card[];

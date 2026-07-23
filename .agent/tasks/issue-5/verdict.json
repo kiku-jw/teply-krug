@@ -1,0 +1,10 @@
+{
+  "taskId": "issue-5",
+  "status": "UNKNOWN",
+  "verifiedAt": "2026-07-23",
+  "summary": "AC1-AC9 pass fresh local verification. AC10 is pending publication and live readback.",
+  "findings": [],
+  "residualRisks": [
+    "Perceived sound volume and animation delight depend on the host device and Zoom share-sound settings."
+  ]
+}

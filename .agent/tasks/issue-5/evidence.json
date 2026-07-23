@@ -1,0 +1,15 @@
+{
+  "taskId": "issue-5",
+  "criteria": [
+    { "id": "AC1", "status": "PASS", "proof": ["tests/game.test.ts", "tests/e2e/game.spec.ts"] },
+    { "id": "AC2", "status": "PASS", "proof": ["tests/e2e/game.spec.ts"] },
+    { "id": "AC3", "status": "PASS", "proof": ["tests/game.test.ts", "tests/e2e/game.spec.ts"] },
+    { "id": "AC4", "status": "PASS", "proof": ["tests/e2e/visual.spec.ts", "docs/media/game.png"] },
+    { "id": "AC5", "status": "PASS", "proof": ["tests/e2e/game.spec.ts"] },
+    { "id": "AC6", "status": "PASS", "proof": ["tests/e2e/game.spec.ts", "public/media/question-jar-intro.mp4", "public/media/question-jar-quick.mp4"] },
+    { "id": "AC7", "status": "PASS", "proof": ["tests/content.test.ts", "tests/copy.test.ts"] },
+    { "id": "AC8", "status": "PASS", "proof": ["tests/e2e/game.spec.ts", "docs/media/finish.png"] },
+    { "id": "AC9", "status": "PASS", "proof": ["tests/storage.test.ts", "tests/e2e/game.spec.ts"] },
+    { "id": "AC10", "status": "UNKNOWN", "proof": ["npm run check", "npm run test:e2e", ".agent/tasks/issue-5/raw/verification.md"] }
+  ]
+}

@@ -1,8 +1,7 @@
-import { ABILITIES, CATEGORIES, STAGES } from "./game";
-import type { AbilityId, Card, CardMode, Category, Player, Preferences, SessionState, Stage, StoredData } from "./types";
+import { CATEGORIES, SESSION_MODES, STAGES } from "./game";
+import type { Card, CardMode, Category, Player, Preferences, SessionMode, SessionState, Stage, StoredData } from "./types";
 
 const STORAGE_KEY = "teply-krug:v1";
-const CURRENT_VERSION = 1;
 
 const defaultPreferences: Preferences = {
   timerSeconds: 75,
@@ -15,7 +14,7 @@ const defaultPreferences: Preferences = {
 
 export function createDefaultStoredData(): StoredData {
   return {
-    version: CURRENT_VERSION,
+    version: 2,
     preferences: { ...defaultPreferences },
     session: null,
     customCards: [],
@@ -42,12 +41,8 @@ function isCardMode(value: unknown): value is CardMode {
   return value === "answer" || value === "perform" || value === "group";
 }
 
-function isAbility(value: unknown): value is AbilityId {
-  return typeof value === "string" && ABILITIES.some((ability) => ability === value);
-}
-
-function isAbilityArray(value: unknown): value is AbilityId[] {
-  return Array.isArray(value) && value.every(isAbility);
+function isSessionMode(value: unknown): value is SessionMode {
+  return typeof value === "string" && SESSION_MODES.some((mode) => mode === value);
 }
 
 function isCard(value: unknown): value is Card {
@@ -64,9 +59,7 @@ function isCard(value: unknown): value is Card {
 function isPlayer(value: unknown): value is Player {
   return isObject(value)
     && typeof value.id === "string"
-    && typeof value.name === "string"
-    && isAbilityArray(value.abilities)
-    && isAbilityArray(value.usedAbilities);
+    && typeof value.name === "string";
 }
 
 function isSession(value: unknown): value is SessionState {
@@ -74,12 +67,13 @@ function isSession(value: unknown): value is SessionState {
     && Array.isArray(value.players)
     && value.players.every(isPlayer)
     && typeof value.currentPlayerIndex === "number"
-    && isStage(value.stage)
     && typeof value.round === "number"
     && (typeof value.currentCardId === "string" || value.currentCardId === null)
-    && isStringArray(value.alternativeCardIds)
     && (typeof value.partnerPlayerId === "string" || value.partnerPlayerId === null)
-    && typeof value.groupHelpActive === "boolean";
+    && isSessionMode(value.mode)
+    && typeof value.turnsCompleted === "number"
+    && (typeof value.targetTurns === "number" || value.targetTurns === null)
+    && isStringArray(value.recentCardIds);
 }
 
 function isPreferences(value: unknown): value is Preferences {
@@ -95,11 +89,69 @@ function isPreferences(value: unknown): value is Preferences {
 
 function isStoredData(value: unknown): value is StoredData {
   return isObject(value)
-    && value.version === CURRENT_VERSION
+    && value.version === 2
     && isPreferences(value.preferences)
     && (value.session === null || isSession(value.session))
     && Array.isArray(value.customCards)
     && value.customCards.every(isCard);
+}
+
+function migratePlayer(value: unknown): Player | null {
+  if (!isObject(value) || typeof value.id !== "string" || typeof value.name !== "string") {
+    return null;
+  }
+  return { id: value.id, name: value.name };
+}
+
+function migrateSession(value: unknown): SessionState | null {
+  if (!isObject(value) || !Array.isArray(value.players)) {
+    return null;
+  }
+  const players: Player[] = [];
+  for (const candidate of value.players) {
+    const player = migratePlayer(candidate);
+    if (player === null) {
+      return null;
+    }
+    players.push(player);
+  }
+  if (players.length < 2) {
+    return null;
+  }
+  const currentPlayerIndex = typeof value.currentPlayerIndex === "number"
+    ? Math.max(0, Math.min(players.length - 1, Math.floor(value.currentPlayerIndex)))
+    : 0;
+  const round = typeof value.round === "number" ? Math.max(1, Math.floor(value.round)) : 1;
+  const currentCardId = typeof value.currentCardId === "string" ? value.currentCardId : null;
+  const partnerPlayerId = typeof value.partnerPlayerId === "string" ? value.partnerPlayerId : null;
+  return {
+    players,
+    currentPlayerIndex,
+    round,
+    currentCardId,
+    partnerPlayerId,
+    mode: "open",
+    turnsCompleted: ((round - 1) * players.length) + currentPlayerIndex,
+    targetTurns: null,
+    recentCardIds: currentCardId === null ? [] : [currentCardId],
+  };
+}
+
+function migrateVersionOne(value: unknown): StoredData | null {
+  if (!isObject(value)
+    || value.version !== 1
+    || !isPreferences(value.preferences)
+    || !Array.isArray(value.customCards)
+    || !value.customCards.every(isCard)) {
+    return null;
+  }
+  const session = value.session === null ? null : migrateSession(value.session);
+  return {
+    version: 2,
+    preferences: value.preferences,
+    session,
+    customCards: value.customCards,
+  };
 }
 
 export function loadStoredData(storage: Storage = window.localStorage): StoredData {
@@ -109,7 +161,15 @@ export function loadStoredData(storage: Storage = window.localStorage): StoredDa
   }
   try {
     const parsed: unknown = JSON.parse(raw);
-    return isStoredData(parsed) ? parsed : createDefaultStoredData();
+    if (isStoredData(parsed)) {
+      return parsed;
+    }
+    const migrated = migrateVersionOne(parsed);
+    if (migrated !== null) {
+      storage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      return migrated;
+    }
+    return createDefaultStoredData();
   } catch {
     return createDefaultStoredData();
   }

@@ -11,26 +11,30 @@ test("captures the welcome composition", async ({ page }, testInfo) => {
 });
 
 test("captures a revealed game card", async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    Math.random = () => 0;
+  });
   await page.goto("./");
   await page.getByRole("button", { name: "Собрать компанию" }).click();
   const names = ["Аня", "Борис", "Вера", "Глеб", "Даша", "Егор"];
-  for (let index = 0; index < names.length; index += 1) {
-    if (index >= 2) {
-      await page.getByRole("button", { name: "Добавить имя" }).click();
-    }
-    const name = names[index];
-    if (name !== undefined) {
-      await page.locator("[data-player-name]").nth(index).fill(name);
-    }
-  }
+  await page.getByLabel("Имена по порядку ходов").fill(names.join("\n"));
   await page.getByRole("button", { name: "Начать игру" }).click();
   await expect(page.getByRole("button", { name: "ВЫТЯНУТЬ", exact: true })).toBeVisible();
   await page.waitForTimeout(550);
   await page.screenshot({ path: testInfo.outputPath("jar-cover.png"), fullPage: true });
   await page.getByRole("button", { name: "ВЫТЯНУТЬ", exact: true }).click();
   await expect(page.locator(".question-card")).toBeVisible();
+  if (testInfo.project.name === "mobile") {
+    await expect(page.getByRole("button", { name: "ДАЛЬШЕ", exact: true })).toBeInViewport();
+    await expect(page.getByText("Если вопрос не подходит", { exact: true })).toBeInViewport();
+  }
   await page.waitForTimeout(750);
   await page.screenshot({ path: testInfo.outputPath("game.png"), fullPage: true });
+  await page.getByText("Если вопрос не подходит", { exact: true }).click();
+  await page.getByRole("button", { name: /Закончить вечер/ }).click();
+  await expect(page.getByRole("heading", { name: "Последняя записка" })).toBeVisible();
+  await page.waitForTimeout(550);
+  await page.screenshot({ path: testInfo.outputPath("finish.png"), fullPage: true });
 });
 
 test("captures the 1440 by 900 presentation viewport", async ({ page }, testInfo) => {

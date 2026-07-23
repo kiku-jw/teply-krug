@@ -1,8 +1,8 @@
-import type { AbilityId, Card, Category, DrawResult, Player, Stage } from "./types";
+import type { Card, Category, DrawResult, Player, SessionMode, Stage } from "./types";
 
 export const STAGES: Stage[] = ["spark", "closer", "together"];
 export const CATEGORIES: Category[] = ["personal", "stories", "service", "bible", "creative"];
-export const ABILITIES: AbilityId[] = ["replace", "partner", "twoChoices", "groupHelp", "chooseCategory"];
+export const SESSION_MODES: SessionMode[] = ["quick", "standard", "open"];
 
 export const stageNames: Record<Stage, string> = {
   spark: "В начале",
@@ -18,20 +18,16 @@ export const categoryNames: Record<Category, string> = {
   creative: "Показать или придумать",
 };
 
-export const abilityNames: Record<AbilityId, string> = {
-  replace: "Другой вопрос",
-  partner: "Вместе",
-  twoChoices: "На выбор",
-  groupHelp: "Спросить всех",
-  chooseCategory: "Выбрать тему",
+export const sessionModeNames: Record<SessionMode, string> = {
+  quick: "Быстро",
+  standard: "Обычный вечер",
+  open: "Без плана",
 };
 
-export const abilityDescriptions: Record<AbilityId, string> = {
-  replace: "Убрать этот и взять новый. Объяснять не нужно.",
-  partner: "Позвать любого участника отвечать вдвоём.",
-  twoChoices: "Открыть второй вопрос и выбрать один.",
-  groupHelp: "Попросить круг подкинуть ответы или идеи.",
-  chooseCategory: "Взять вопрос на выбранную тему.",
+export const sessionModeDescriptions: Record<SessionMode, string> = {
+  quick: "Около 15 минут",
+  standard: "Около 30 минут",
+  open: "Закончите, когда захочется",
 };
 
 export function shuffle<T>(items: T[], random: () => number = Math.random): T[] {
@@ -48,30 +44,56 @@ export function shuffle<T>(items: T[], random: () => number = Math.random): T[] 
   return result;
 }
 
-export function dealAbilities(random: () => number = Math.random): AbilityId[] {
-  const optional = ABILITIES.filter((ability) => ability !== "replace");
-  return ["replace", ...shuffle(optional, random).slice(0, 2)];
-}
-
-export function createPlayers(names: string[], random: () => number = Math.random): Player[] {
+export function createPlayers(names: string[]): Player[] {
   return names.map((name, index) => ({
     id: `player-${index + 1}-${name.trim().toLocaleLowerCase("ru-RU").replace(/[^а-яёa-z0-9]+/giu, "-")}`,
     name: name.trim(),
-    abilities: dealAbilities(random),
-    usedAbilities: [],
   }));
+}
+
+function allowedStages(round: number): Stage[] {
+  if (round <= 1) {
+    return ["spark"];
+  }
+  if (round === 2) {
+    return ["spark", "closer"];
+  }
+  return STAGES;
+}
+
+export function isDeepCard(card: Card): boolean {
+  return card.stage !== "spark"
+    && card.mode === "answer"
+    && (card.category === "service" || card.category === "bible");
+}
+
+function openingKey(text: string): string {
+  return text.trim().split(/\s+/u)[0]?.toLocaleLowerCase("ru-RU").replace(/[«»"!?.,:]/gu, "") ?? "";
+}
+
+function followsSmoothly(card: Card, previous: Card | null, category?: Category): boolean {
+  if (previous === null) {
+    return true;
+  }
+  const repeatsCategory = category === undefined && card.category === previous.category;
+  const repeatsDeepCard = isDeepCard(card) && isDeepCard(previous);
+  const repeatsActiveMode = card.mode !== "answer" && card.mode === previous.mode;
+  const repeatsOpening = openingKey(card.text) === openingKey(previous.text);
+  return !repeatsCategory && !repeatsDeepCard && !repeatsActiveMode && !repeatsOpening;
 }
 
 export function drawCard(
   cards: Card[],
-  stage: Stage,
+  round: number,
   seenCardIds: string[],
   random: () => number = Math.random,
   category?: Category,
   excludedCardIds: string[] = [],
+  previousCardId: string | null = null,
 ): DrawResult {
+  const stages = allowedStages(round);
   const eligible = cards.filter((card) =>
-    card.stage === stage
+    stages.some((stage) => stage === card.stage)
     && (category === undefined || card.category === category)
     && !excludedCardIds.includes(card.id),
   );
@@ -86,7 +108,10 @@ export function drawCard(
     recycled = true;
   }
 
-  const selected = available[Math.floor(random() * available.length)] ?? null;
+  const previous = cards.find((card) => card.id === previousCardId) ?? null;
+  const smoothlyPaced = available.filter((card) => followsSmoothly(card, previous, category));
+  const selectionPool = smoothlyPaced.length > 0 ? smoothlyPaced : available;
+  const selected = selectionPool[Math.floor(random() * selectionPool.length)] ?? null;
   if (selected === null) {
     return { card: null, recycled, seenCardIds: nextSeen };
   }
@@ -97,19 +122,32 @@ export function drawCard(
   };
 }
 
-export function stageForRound(round: number): Stage {
-  if (round <= 1) {
-    return "spark";
+function targetSeconds(mode: SessionMode): number | null {
+  if (mode === "quick") {
+    return 15 * 60;
   }
-  if (round === 2) {
-    return "closer";
+  if (mode === "standard") {
+    return 30 * 60;
   }
-  return "together";
+  return null;
 }
 
-export function markAbilityUsed(player: Player, ability: AbilityId): Player {
-  if (!player.abilities.includes(ability) || player.usedAbilities.includes(ability)) {
-    return player;
+export function targetTurnsForMode(
+  mode: SessionMode,
+  playerCount: number,
+  timerSeconds: number,
+): number | null {
+  const seconds = targetSeconds(mode);
+  if (seconds === null || playerCount < 1) {
+    return null;
   }
-  return { ...player, usedAbilities: [...player.usedAbilities, ability] };
+  const answerSeconds = timerSeconds === 0 ? 75 : Math.max(timerSeconds, 45);
+  const estimatedTurnSeconds = answerSeconds + 15;
+  const estimatedRounds = Math.max(1, Math.round(seconds / (playerCount * estimatedTurnSeconds)));
+  return estimatedRounds * playerCount;
+}
+
+export function estimatedMinutesForTurns(turns: number, timerSeconds: number): number {
+  const answerSeconds = timerSeconds === 0 ? 75 : Math.max(timerSeconds, 45);
+  return Math.max(1, Math.round((turns * (answerSeconds + 15)) / 60));
 }

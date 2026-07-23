@@ -2,19 +2,20 @@ import "./styles.css";
 
 import { builtInCards } from "./content/cards";
 import {
-  abilityDescriptions,
-  abilityNames,
   categoryNames,
   CATEGORIES,
   createPlayers,
   drawCard,
-  markAbilityUsed,
+  estimatedMinutesForTurns,
+  SESSION_MODES,
+  sessionModeDescriptions,
+  sessionModeNames,
   stageNames,
-  stageForRound,
   STAGES,
+  targetTurnsForMode,
 } from "./game";
 import { clearStoredData, loadStoredData, saveStoredData } from "./storage";
-import type { AbilityId, Card, CardMode, Category, Screen, Stage } from "./types";
+import type { Card, CardMode, Category, Screen, SessionMode, Stage } from "./types";
 
 const rootElement = document.querySelector<HTMLDivElement>("#app");
 const liveRegionElement = document.querySelector<HTMLDivElement>("#live-region");
@@ -29,9 +30,11 @@ const liveRegion: HTMLDivElement = liveRegionElement;
 let data = loadStoredData();
 let screen: Screen = "welcome";
 let returnScreen: Screen = "welcome";
+let editorReturnScreen: Screen = "welcome";
 let draftNames = data.preferences.savedNames.length >= 2
   ? [...data.preferences.savedNames]
   : ["", ""];
+let draftMode: SessionMode = "standard";
 let editingCustomId: string | null = null;
 let editorSearch = "";
 let cardRevealed = false;
@@ -40,12 +43,12 @@ let timerRunning = false;
 let timerHandle: number | null = null;
 let toastMessage = "";
 let toastHandle: number | null = null;
-let jarRevealMode: "idle" | "intro" | "quick" | "lucky" = "idle";
+let jarRevealMode: "idle" | "intro" | "shuffle" | "pop" | "unfold" = "idle";
 let jarRevealCount = 0;
 let jarRevealRun = 0;
 let jarRevealFallbackHandle: number | null = null;
 
-type SoundCue = "reveal" | "turn" | "ability" | "timer";
+type SoundCue = "paper" | "turn" | "glass" | "timer";
 
 const jarPosterUrl = "./media/question-jar-poster.webp";
 const jarIntroUrl = "./media/question-jar-intro.mp4";
@@ -125,20 +128,22 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
   if (session === null) {
     return null;
   }
-  session.stage = stageForRound(session.round);
+  const previousCardId = session.recentCardIds.at(-1) ?? null;
   const result = drawCard(
     enabledCards(),
-    session.stage,
+    session.round,
     data.preferences.seenCardIds,
     Math.random,
     category,
     excludedCardIds,
+    previousCardId,
   );
   data.preferences.seenCardIds = result.seenCardIds;
   session.currentCardId = result.card?.id ?? null;
-  session.alternativeCardIds = [];
   session.partnerPlayerId = null;
-  session.groupHelpActive = false;
+  if (result.card !== null) {
+    session.recentCardIds = [...session.recentCardIds, result.card.id].slice(-4);
+  }
   cancelJarReveal();
   cardRevealed = false;
   resetTimer();
@@ -151,7 +156,7 @@ function drawForCurrent(category?: Category, excludedCardIds: string[] = []): Ca
 
 function renderBrand(compact = false): string {
   return `
-    <button class="brand ${compact ? "brand-compact" : ""}" data-action="home" aria-label="Доставай! — на главную">
+    <button class="brand ${compact ? "brand-compact" : ""}" data-action="home" aria-label="Доставай! На главную">
       <span class="brand-mark" aria-hidden="true"><span></span></span>
       <span><strong>Доставай!</strong><small>банка вопросов</small></span>
     </button>
@@ -168,7 +173,6 @@ function renderShell(content: string, options?: { compactHeader?: boolean; gameH
       <header class="topbar ${compactHeader ? "topbar-compact" : ""}">
         ${renderBrand(compactHeader)}
         <nav class="top-actions" aria-label="Настройки игры">
-          <button class="button button-quiet" data-action="editor">Колода</button>
           <button class="button button-quiet" data-action="settings">Настройки</button>
         </nav>
       </header>
@@ -191,7 +195,7 @@ function bindGlobalActions(): void {
     element.addEventListener("click", () => {
       cancelJarReveal();
       stopTimer();
-      returnScreen = screen;
+      editorReturnScreen = screen;
       screen = "editor";
       editingCustomId = null;
       render();
@@ -228,8 +232,8 @@ function renderWelcome(): void {
           <span class="loose-note loose-note-one" aria-hidden="true"></span>
           <span class="loose-note loose-note-two" aria-hidden="true"></span>
         </div>
-        <div class="scene-chip chip-left"><strong>2-12</strong><span>человек</span></div>
-        <div class="scene-chip chip-right"><strong>${seenCount}</strong><span>уже вытянуто</span></div>
+        <div class="scene-chip chip-left"><strong>15/30</strong><span>минут</span></div>
+        <div class="scene-chip chip-right"><strong>${seenCount}</strong><span>без повторов</span></div>
       </div>
       <div class="welcome-facts" aria-label="Как устроена игра">
         <div><strong>360</strong><span>записок в банке</span></div>
@@ -244,6 +248,7 @@ function renderWelcome(): void {
     draftNames = data.preferences.savedNames.length >= 2
       ? [...data.preferences.savedNames]
       : ["", ""];
+    draftMode = "standard";
     screen = "setup";
     render();
   });
@@ -257,8 +262,10 @@ function renderWelcome(): void {
 }
 
 function syncDraftNames(): void {
-  draftNames = Array.from(root.querySelectorAll<HTMLInputElement>("[data-player-name]"))
-    .map((input) => input.value);
+  const input = root.querySelector<HTMLTextAreaElement>("[data-player-list]");
+  if (input !== null) {
+    draftNames = input.value.split(/[\n,;]+/u).map((name) => name.trim()).filter((name) => name.length > 0);
+  }
 }
 
 function validNames(): string[] {
@@ -272,6 +279,9 @@ function setupValidationMessage(names: string[]): string {
   if (names.length > 12) {
     return "В одной игре может быть не больше 12 человек.";
   }
+  if (names.some((name) => name.length > 28)) {
+    return "Сократите имена до 28 символов.";
+  }
   const normalized = names.map((name) => name.toLocaleLowerCase("ru-RU"));
   if (new Set(normalized).size !== normalized.length) {
     return "Имена не должны повторяться.";
@@ -280,33 +290,34 @@ function setupValidationMessage(names: string[]): string {
 }
 
 function renderSetup(): void {
-  const rows = draftNames.map((name, index) => `
-    <div class="player-input-row">
-      <span class="player-number" aria-hidden="true">${index + 1}</span>
-      <label class="sr-only" for="player-${index}">Имя участника ${index + 1}</label>
-      <input id="player-${index}" data-player-name type="text" maxlength="28" value="${escapeHtml(name)}" autocomplete="off" placeholder="Имя участника" />
-      <div class="row-actions">
-        <button class="icon-button" data-move-up="${index}" aria-label="Поднять ${escapeHtml(name || `участника ${index + 1}`)}">↑</button>
-        <button class="icon-button" data-move-down="${index}" aria-label="Опустить ${escapeHtml(name || `участника ${index + 1}`)}">↓</button>
-        <button class="icon-button icon-button-danger" data-remove-player="${index}" aria-label="Удалить ${escapeHtml(name || `участника ${index + 1}`)}">×</button>
-      </div>
-    </div>
-  `).join("");
-
   renderShell(`
     <section class="setup-layout" aria-labelledby="setup-title">
       <div class="setup-intro">
         <button class="text-button" data-action="back">Назад</button>
         <h1 id="setup-title">Кто сегодня играет?</h1>
-        <p>Порядок имён станет порядком ходов. Его можно изменить стрелками.</p>
+        <p>Вставьте имена через запятую или с новой строки. Их порядок станет порядком ходов.</p>
         <p>Первый вопрос будет о Библии. Дальше темы перемешаются сами.</p>
       </div>
       <form class="setup-form" id="setup-form">
-        <div class="form-heading"><h2>Участники</h2><span>${draftNames.length}/12</span></div>
-        <div class="player-inputs">${rows}</div>
+        <div class="form-heading"><h2>Имена</h2><span id="player-count">${validNames().length}/12</span></div>
+        <label class="player-list-field" for="player-list">
+          <span class="sr-only">Имена по порядку ходов</span>
+          <textarea id="player-list" data-player-list rows="7" autocomplete="off" placeholder="Аня&#10;Борис&#10;Вера">${escapeHtml(draftNames.join("\n"))}</textarea>
+          <small>От 2 до 12 человек. Порядок можно изменить прямо в списке.</small>
+        </label>
+        <fieldset class="session-mode-picker">
+          <legend>Сколько играем?</legend>
+          <div class="session-mode-grid">
+            ${SESSION_MODES.map((mode) => `
+              <label class="session-mode-option">
+                <input type="radio" name="session-mode" value="${mode}" ${draftMode === mode ? "checked" : ""} />
+                <span><strong>${sessionModeNames[mode]}</strong><small>${sessionModeDescriptions[mode]}</small></span>
+              </label>
+            `).join("")}
+          </div>
+        </fieldset>
         <p class="form-error" id="setup-error" aria-live="polite"></p>
         <div class="setup-footer">
-          <button class="button button-secondary" type="button" data-action="add-player" ${draftNames.length >= 12 ? "disabled" : ""}>Добавить имя</button>
           <button class="button button-primary" type="submit">Начать игру</button>
         </div>
       </form>
@@ -318,38 +329,21 @@ function renderSetup(): void {
     screen = "welcome";
     render();
   });
-  root.querySelector<HTMLElement>("[data-action='add-player']")?.addEventListener("click", () => {
-    syncDraftNames();
-    if (draftNames.length < 12) {
-      draftNames.push("");
+  root.querySelector<HTMLTextAreaElement>("[data-player-list]")?.addEventListener("input", (event) => {
+    if (!(event.currentTarget instanceof HTMLTextAreaElement)) {
+      return;
     }
-    render();
-    root.querySelectorAll<HTMLInputElement>("[data-player-name]").item(draftNames.length - 1).focus();
+    const count = event.currentTarget.value.split(/[\n,;]+/u).map((name) => name.trim()).filter((name) => name.length > 0).length;
+    const counter = root.querySelector<HTMLElement>("#player-count");
+    if (counter !== null) {
+      counter.textContent = `${count}/12`;
+    }
   });
-  root.querySelectorAll<HTMLElement>("[data-remove-player]").forEach((button) => {
-    button.addEventListener("click", () => {
-      syncDraftNames();
-      const index = Number(button.dataset.removePlayer);
-      if (Number.isInteger(index) && draftNames.length > 1) {
-        draftNames.splice(index, 1);
+  root.querySelectorAll<HTMLInputElement>("input[name='session-mode']").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (isSessionModeValue(input.value)) {
+        draftMode = input.value;
       }
-      render();
-    });
-  });
-  root.querySelectorAll<HTMLElement>("[data-move-up], [data-move-down]").forEach((button) => {
-    button.addEventListener("click", () => {
-      syncDraftNames();
-      const upIndex = button.dataset.moveUp;
-      const downIndex = button.dataset.moveDown;
-      const index = Number(upIndex ?? downIndex);
-      const target = upIndex === undefined ? index + 1 : index - 1;
-      const name = draftNames[index];
-      const targetName = draftNames[target];
-      if (name !== undefined && targetName !== undefined) {
-        draftNames[index] = targetName;
-        draftNames[target] = name;
-      }
-      render();
     });
   });
   root.querySelector<HTMLFormElement>("#setup-form")?.addEventListener("submit", (event) => {
@@ -368,12 +362,13 @@ function renderSetup(): void {
     data.session = {
       players: createPlayers(names),
       currentPlayerIndex: 0,
-      stage: "spark",
       round: 1,
       currentCardId: null,
-      alternativeCardIds: [],
       partnerPlayerId: null,
-      groupHelpActive: false,
+      mode: draftMode,
+      turnsCompleted: 0,
+      targetTurns: targetTurnsForMode(draftMode, names.length, data.preferences.timerSeconds),
+      recentCardIds: [],
     };
     drawForCurrent("bible");
     screen = "game";
@@ -437,26 +432,53 @@ function playSound(cue: SoundCue): void {
   }
   try {
     const context = new AudioContext();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const settings: Record<SoundCue, { start: number; end: number; length: number; volume: number }> = {
-      reveal: { start: 392, end: 523.25, length: 0.28, volume: 0.075 },
-      turn: { start: 523.25, end: 659.25, length: 0.22, volume: 0.065 },
-      ability: { start: 329.63, end: 493.88, length: 0.3, volume: 0.07 },
-      timer: { start: 523.25, end: 523.25, length: 0.7, volume: 0.12 },
+    const addPaper = (delay: number, length: number, volume: number): void => {
+      const frameCount = Math.max(1, Math.floor(context.sampleRate * length));
+      const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let index = 0; index < channel.length; index += 1) {
+        const envelope = 1 - (index / channel.length);
+        channel[index] = ((Math.random() * 2) - 1) * envelope;
+      }
+      const source = context.createBufferSource();
+      const filter = context.createBiquadFilter();
+      const gain = context.createGain();
+      filter.type = "bandpass";
+      filter.frequency.value = 2200;
+      filter.Q.value = 0.65;
+      gain.gain.value = volume;
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(context.destination);
+      source.start(context.currentTime + delay);
     };
-    const sound = settings[cue];
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(sound.start, context.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(sound.end, context.currentTime + sound.length * 0.7);
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(sound.volume, context.currentTime + 0.018);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + sound.length);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + sound.length + 0.02);
-    oscillator.addEventListener("ended", () => void context.close());
+    const addGlass = (delay: number, frequency: number, length: number, volume: number): void => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, context.currentTime + delay);
+      gain.gain.setValueAtTime(0.0001, context.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(volume, context.currentTime + delay + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + delay + length);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(context.currentTime + delay);
+      oscillator.stop(context.currentTime + delay + length + 0.02);
+    };
+
+    if (cue === "paper") {
+      addPaper(0, 0.16, 0.055);
+      addGlass(0.08, 1480, 0.22, 0.025);
+    } else if (cue === "turn") {
+      addPaper(0, 0.1, 0.04);
+    } else if (cue === "glass") {
+      addGlass(0, 1320, 0.24, 0.035);
+    } else {
+      addGlass(0, 1180, 0.3, 0.045);
+      addGlass(0.18, 1480, 0.42, 0.04);
+    }
+    window.setTimeout(() => void context.close(), cue === "timer" ? 800 : 500);
   } catch {
     // Sound is optional and may be blocked by browser policy.
   }
@@ -489,7 +511,7 @@ function finishJarReveal(run: number, playerName: string, cardText: string): voi
   resetTimer();
   render();
   startTimer();
-  announce(`Вопрос для ${playerName}: ${cardText}`);
+  announce(`Сейчас отвечает ${playerName}. Вопрос: ${cardText}`);
 }
 
 function beginJarReveal(playerName: string, cardText: string): void {
@@ -497,24 +519,30 @@ function beginJarReveal(playerName: string, cardText: string): void {
   resetTimer();
 
   if (shouldReduceRevealMotion()) {
-    playSound("reveal");
+    playSound("paper");
     cardRevealed = true;
     render();
     startTimer();
-    announce(`Вопрос для ${playerName}: ${cardText}`);
+    announce(`Сейчас отвечает ${playerName}. Вопрос: ${cardText}`);
     return;
   }
 
   const isFirstDraw = jarRevealCount === 0;
-  const isLuckyDraw = jarRevealCount > 0 && (jarRevealCount + 1) % 5 === 0;
+  const revealIndex = Math.max(0, jarRevealCount - 1) % 3;
+  jarRevealMode = isFirstDraw
+    ? "intro"
+    : revealIndex === 0
+      ? "shuffle"
+      : revealIndex === 1
+        ? "pop"
+        : "unfold";
   jarRevealCount += 1;
-  jarRevealMode = isFirstDraw ? "intro" : isLuckyDraw ? "lucky" : "quick";
   const run = jarRevealRun;
   render();
 
   const video = root.querySelector<HTMLVideoElement>("#jar-reveal-video");
   if (video === null) {
-    playSound("reveal");
+    playSound("paper");
     finishJarReveal(run, playerName, cardText);
     return;
   }
@@ -531,49 +559,15 @@ function beginJarReveal(playerName: string, cardText: string): void {
     if (finished) {
       return;
     }
-    playSound("reveal");
+    playSound("paper");
     finish();
   };
   video.muted = !data.preferences.soundEnabled;
   video.addEventListener("ended", finish, { once: true });
   video.addEventListener("error", finishWithFallbackSound, { once: true });
-  jarRevealFallbackHandle = window.setTimeout(finishWithFallbackSound, isFirstDraw ? 4300 : 2200);
-  announce(`Достаём вопрос для ${playerName}.`);
+  jarRevealFallbackHandle = window.setTimeout(finishWithFallbackSound, isFirstDraw ? 4100 : 1800);
+  announce(`Сейчас отвечает ${playerName}. Достаём вопрос.`);
   void video.play().catch(finishWithFallbackSound);
-}
-
-function renderPlayerRail(): string {
-  const session = data.session;
-  if (session === null) {
-    return "";
-  }
-  return session.players.map((player, index) => {
-    const active = index === session.currentPlayerIndex;
-    const remaining = player.abilities.length - player.usedAbilities.length;
-    return `
-      <li class="player-rail-item ${active ? "player-active" : ""}">
-        <span class="avatar">${escapeHtml(player.name.slice(0, 1).toLocaleUpperCase("ru-RU"))}</span>
-        <span><strong>${escapeHtml(player.name)}</strong><small>${remaining} ${remaining === 1 ? "жетон" : "жетона"}</small></span>
-        ${active ? '<span class="current-label">ходит</span>' : ""}
-      </li>
-    `;
-  }).join("");
-}
-
-function renderAbilities(): string {
-  const player = currentPlayer();
-  if (player === null) {
-    return "";
-  }
-  return player.abilities.map((ability) => {
-    const used = player.usedAbilities.includes(ability);
-    return `
-      <button class="ability" data-ability="${ability}" ${used || jarRevealMode !== "idle" ? "disabled" : ""} aria-label="${escapeHtml(`${abilityNames[ability]}. ${abilityDescriptions[ability]}`)}">
-        <span>${used ? "0" : "1"}</span>
-        <span class="ability-copy"><strong>${escapeHtml(abilityNames[ability])}</strong><small>${escapeHtml(abilityDescriptions[ability])}</small></span>
-      </button>
-    `;
-  }).join("");
 }
 
 function renderJarCover(): string {
@@ -588,12 +582,14 @@ function renderJarCover(): string {
 
 function renderJarReveal(): string {
   const intro = jarRevealMode === "intro";
-  const mirrored = !intro && jarRevealCount % 2 === 0;
+  const mirrored = jarRevealMode === "pop";
   return `
-    <div class="jar-reveal ${jarRevealMode === "lucky" ? "jar-reveal-lucky" : ""} ${mirrored ? "jar-reveal-mirrored" : ""}" role="status" aria-label="Достаём записку">
+    <div class="jar-reveal jar-reveal-${jarRevealMode} ${mirrored ? "jar-reveal-mirrored" : ""}" role="status" aria-label="Достаём записку">
       <video id="jar-reveal-video" src="${intro ? jarIntroUrl : jarQuickUrl}" poster="${jarPosterUrl}" playsinline preload="auto"></video>
       <span class="jar-reveal-glow" aria-hidden="true"></span>
-      ${jarRevealMode === "lucky" ? '<span class="paper-spark paper-spark-one" aria-hidden="true"></span><span class="paper-spark paper-spark-two" aria-hidden="true"></span><span class="paper-spark paper-spark-three" aria-hidden="true"></span>' : ""}
+      <span class="reveal-note reveal-note-one" aria-hidden="true"></span>
+      <span class="reveal-note reveal-note-two" aria-hidden="true"></span>
+      <span class="reveal-paper" aria-hidden="true"></span>
       <span class="sr-only">Достаём и разворачиваем вопрос</span>
     </div>
   `;
@@ -604,35 +600,18 @@ function renderQuestionCard(card: Card): string {
   if (session === null) {
     return "";
   }
+  const player = currentPlayer();
   const partner = session.players.find((player) => player.id === session.partnerPlayerId);
   const contexts = [
-    partner !== undefined ? `Вместе с ${escapeHtml(partner.name)}` : "",
-    session.groupHelpActive ? "Отвечает весь круг" : "",
+    player !== null && partner !== undefined
+      ? `Вдвоём: ${escapeHtml(player.name)} и ${escapeHtml(partner.name)}`
+      : "",
   ].filter((context) => context.length > 0);
   return `
     <article class="question-card ${card.mode === "perform" ? "question-card-perform" : ""}">
       <p>${escapeHtml(card.text)}</p>
       ${contexts.length > 0 ? `<div class="card-context">${contexts.map((context) => `<span>${context}</span>`).join("")}</div>` : ""}
     </article>
-  `;
-}
-
-function renderChoiceCards(): string {
-  const session = data.session;
-  if (session === null || session.alternativeCardIds.length !== 2) {
-    return "";
-  }
-  return `
-    <div class="choice-heading"><strong>Выбери вопрос</strong></div>
-    <div class="choice-grid">
-      ${session.alternativeCardIds.map((id) => {
-        const card = cardById(id);
-        if (card === null) {
-          return "";
-        }
-        return `<button class="choice-card" data-choose-card="${card.id}"><strong>${escapeHtml(card.text)}</strong></button>`;
-      }).join("")}
-    </div>
   `;
 }
 
@@ -646,30 +625,37 @@ function renderGame(): void {
     return;
   }
   if (card === null) {
-    drawForCurrent();
+    const drawn = drawForCurrent();
+    if (drawn === null) {
+      renderShell(`
+        <section class="empty-deck" aria-labelledby="empty-deck-title">
+          <h1 id="empty-deck-title">В банке не осталось вопросов</h1>
+          <p>Верните скрытые карточки в настройках или добавьте свои.</p>
+          <button class="button button-primary" data-action="settings">Открыть настройки</button>
+        </section>
+      `, { compactHeader: true });
+      return;
+    }
     renderGame();
     return;
   }
 
   renderShell(`
     <section class="game-layout" aria-labelledby="turn-title">
-      <aside class="game-sidebar">
-        <div class="round-label">Круг ${session.round}</div>
-        <ol class="player-rail">${renderPlayerRail()}</ol>
-      </aside>
       <div class="game-stage">
         <div class="turn-heading">
-          <div><span>Сейчас отвечает</span><h1 id="turn-title">${escapeHtml(player.name)}</h1></div>
+          <div>
+            <span>Круг ${session.round}, ${session.currentPlayerIndex + 1} из ${session.players.length}</span>
+            <h1 id="turn-title">${escapeHtml(player.name)}</h1>
+          </div>
           <button class="button button-quiet" data-action="leave-game">Выйти</button>
         </div>
         <div class="card-zone" ${jarRevealMode !== "idle" ? 'aria-busy="true"' : ""}>
-          ${session.alternativeCardIds.length === 2
-            ? renderChoiceCards()
-            : cardRevealed
-              ? renderQuestionCard(card)
-              : jarRevealMode === "idle"
-                ? renderJarCover()
-                : renderJarReveal()}
+          ${cardRevealed
+            ? renderQuestionCard(card)
+            : jarRevealMode === "idle"
+              ? renderJarCover()
+              : renderJarReveal()}
         </div>
         <div class="game-controls ${cardRevealed ? "controls-visible" : ""}">
           <div class="timer-box">
@@ -678,9 +664,15 @@ function renderGame(): void {
           </div>
           <button class="button button-primary button-next" data-action="complete-turn" ${cardRevealed ? "" : "disabled"}>ДАЛЬШЕ</button>
         </div>
-        <div class="ability-bar" aria-label="Разовые способности ${escapeHtml(player.name)}">
-          ${renderAbilities()}
-        </div>
+        <details class="turn-options">
+          <summary>Если вопрос не подходит</summary>
+          <div class="turn-options-panel">
+            <button data-action="replace-card" ${jarRevealMode !== "idle" ? "disabled" : ""}><strong>Другой вопрос</strong><small>Можно сменить без объяснений</small></button>
+            <button data-action="answer-together" ${jarRevealMode !== "idle" ? "disabled" : ""}><strong>Ответить вместе</strong><small>Позвать кого-нибудь в помощь</small></button>
+            <button data-action="choose-category" ${jarRevealMode !== "idle" ? "disabled" : ""}><strong>Выбрать тему</strong><small>Если сейчас хочется о чём-то другом</small></button>
+            <button data-action="finish-after-card" ${cardRevealed ? "" : "disabled"}><strong>Закончить вечер</strong><small>Перейти к последней записке</small></button>
+          </div>
+        </details>
       </div>
     </section>
     <dialog class="game-dialog" id="game-dialog"></dialog>
@@ -710,99 +702,24 @@ function renderGame(): void {
       startTimer();
     }
   });
-  root.querySelectorAll<HTMLElement>("[data-ability]").forEach((button) => {
-    button.addEventListener("click", () => useAbility(button.dataset.ability ?? ""));
+  root.querySelector<HTMLElement>("[data-action='replace-card']")?.addEventListener("click", () => {
+    const oldCard = data.session?.currentCardId ?? null;
+    const replacement = drawForCurrent(undefined, oldCard === null ? [] : [oldCard]);
+    if (replacement !== null) {
+      playSound("glass");
+      beginJarReveal(player.name, replacement.text);
+      showToast("Берём другую записку.");
+    }
   });
-  root.querySelectorAll<HTMLElement>("[data-choose-card]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const id = button.dataset.chooseCard;
-      if (id !== undefined && data.session !== null) {
-        data.session.currentCardId = id;
-        data.session.alternativeCardIds = [];
-        cardRevealed = true;
-        resetTimer();
-        playSound("reveal");
-        persist();
-        render();
-        startTimer();
-      }
-    });
+  root.querySelector<HTMLElement>("[data-action='answer-together']")?.addEventListener("click", openPartnerDialog);
+  root.querySelector<HTMLElement>("[data-action='choose-category']")?.addEventListener("click", openCategoryDialog);
+  root.querySelector<HTMLElement>("[data-action='finish-after-card']")?.addEventListener("click", () => {
+    stopTimer();
+    screen = "finish";
+    persist();
+    render();
   });
   updateTimerDisplay();
-}
-
-function isAbilityId(value: string): value is AbilityId {
-  return value === "replace"
-    || value === "partner"
-    || value === "twoChoices"
-    || value === "groupHelp"
-    || value === "chooseCategory";
-}
-
-function updateCurrentPlayerAbility(ability: AbilityId): void {
-  const session = data.session;
-  const player = currentPlayer();
-  if (session === null || player === null) {
-    return;
-  }
-  session.players[session.currentPlayerIndex] = markAbilityUsed(player, ability);
-}
-
-function useAbility(rawAbility: string): void {
-  if (!isAbilityId(rawAbility) || data.session === null) {
-    return;
-  }
-  const player = currentPlayer();
-  if (player === null || player.usedAbilities.includes(rawAbility)) {
-    return;
-  }
-  if (rawAbility === "replace") {
-    updateCurrentPlayerAbility(rawAbility);
-    const oldCard = data.session.currentCardId;
-    drawForCurrent(undefined, oldCard === null ? [] : [oldCard]);
-    persist();
-    playSound("ability");
-    render();
-    showToast("Вот другой вопрос.");
-    return;
-  }
-  if (rawAbility === "twoChoices") {
-    const original = data.session.currentCardId;
-    const result = drawCard(
-      enabledCards(),
-      data.session.stage,
-      data.preferences.seenCardIds,
-      Math.random,
-      undefined,
-      original === null ? [] : [original],
-    );
-    if (original !== null && result.card !== null) {
-      updateCurrentPlayerAbility(rawAbility);
-      data.preferences.seenCardIds = result.seenCardIds;
-      data.session.alternativeCardIds = [original, result.card.id];
-      cardRevealed = true;
-      stopTimer();
-      persist();
-      playSound("ability");
-      render();
-    }
-    return;
-  }
-  if (rawAbility === "groupHelp") {
-    updateCurrentPlayerAbility(rawAbility);
-    data.session.groupHelpActive = true;
-    cardRevealed = true;
-    persist();
-    playSound("ability");
-    render();
-    showToast("Теперь отвечать может весь круг.");
-    return;
-  }
-  if (rawAbility === "partner") {
-    openPartnerDialog();
-    return;
-  }
-  openCategoryDialog();
 }
 
 function openDialog(content: string): HTMLDialogElement | null {
@@ -828,11 +745,22 @@ function openPartnerDialog(): void {
     return;
   }
   const choices = session.players.filter((candidate) => candidate.id !== player.id);
+  if (choices.length === 1) {
+    const partner = choices[0];
+    if (partner !== undefined) {
+      session.partnerPlayerId = partner.id;
+      persist();
+      playSound("glass");
+      render();
+      root.querySelector<HTMLElement>("[data-action='answer-together']")?.focus();
+    }
+    return;
+  }
   const dialog = openDialog(`
     <div class="dialog-panel">
       <button class="dialog-close" data-close-dialog aria-label="Закрыть">×</button>
       <h2>Ответить вместе с кем?</h2>
-      <p>Выбранный человек присоединится к ${escapeHtml(player.name)}.</p>
+      <p>Выберите, кто поможет ответить.</p>
       <div class="dialog-options">
         ${choices.map((candidate) => `<button data-partner="${candidate.id}">${escapeHtml(candidate.name)}</button>`).join("")}
       </div>
@@ -842,13 +770,12 @@ function openPartnerDialog(): void {
     button.addEventListener("click", () => {
       const partnerId = button.dataset.partner;
       if (partnerId !== undefined && data.session !== null) {
-        updateCurrentPlayerAbility("partner");
         data.session.partnerPlayerId = partnerId;
-        cardRevealed = true;
         persist();
-        playSound("ability");
+        playSound("glass");
         dialog.close();
         render();
+        root.querySelector<HTMLElement>("[data-action='answer-together']")?.focus();
       }
     });
   });
@@ -869,12 +796,21 @@ function openCategoryDialog(): void {
     button.addEventListener("click", () => {
       const category = button.dataset.category;
       if (category !== undefined && isCategoryValue(category)) {
-        updateCurrentPlayerAbility("chooseCategory");
-        drawForCurrent(category);
-        persist();
-        playSound("ability");
+        const previousCardId = data.session?.currentCardId ?? null;
+        const wasRevealed = cardRevealed;
+        const selected = drawForCurrent(category);
+        const player = currentPlayer();
         dialog.close();
-        render();
+        if (selected !== null && player !== null) {
+          playSound("glass");
+          beginJarReveal(player.name, selected.text);
+        } else if (data.session !== null) {
+          data.session.currentCardId = previousCardId;
+          cardRevealed = wasRevealed;
+          persist();
+          render();
+          showToast("В этой теме пока нет доступных вопросов.");
+        }
       }
     });
   });
@@ -887,12 +823,13 @@ function completeTurn(): void {
   }
   stopTimer();
   playSound("turn");
+  session.turnsCompleted += 1;
   const nextIndex = session.currentPlayerIndex + 1;
   if (nextIndex >= session.players.length) {
     session.currentPlayerIndex = 0;
     session.round += 1;
     session.currentCardId = null;
-    session.alternativeCardIds = [];
+    session.partnerPlayerId = null;
     screen = "checkpoint";
     persist();
     render();
@@ -911,19 +848,22 @@ function renderCheckpoint(): void {
     render();
     return;
   }
+  const planReached = session.targetTurns !== null && session.turnsCompleted >= session.targetTurns;
+  const roundMinutes = estimatedMinutesForTurns(session.players.length, data.preferences.timerSeconds);
   renderShell(`
     <section class="checkpoint" aria-labelledby="checkpoint-title">
       <div class="checkpoint-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
-      <h1 id="checkpoint-title">Все ответили</h1>
-      <p>Можно сделать паузу или сыграть ещё один круг.</p>
+      <h1 id="checkpoint-title">${planReached ? "Можно завершать" : "Все ответили"}</h1>
+      <p>${planReached
+        ? `Запланированное время прошло. Ещё один круг займёт примерно ${roundMinutes} мин.`
+        : `Можно закончить сейчас или сыграть ещё один круг, примерно ${roundMinutes} мин.`}</p>
       <div class="checkpoint-actions">
-        <button class="button button-primary button-large" data-action="more-round">Продолжить</button>
-        <button class="button button-secondary button-large" data-action="finish-game">Закончить</button>
+        <button class="button ${planReached ? "button-secondary" : "button-primary"} button-large" data-action="more-round">Ещё круг</button>
+        <button class="button ${planReached ? "button-primary" : "button-secondary"} button-large" data-action="finish-game">Закончить</button>
       </div>
     </section>
   `, { compactHeader: true });
   root.querySelector<HTMLElement>("[data-action='more-round']")?.addEventListener("click", () => {
-    session.stage = stageForRound(session.round);
     drawForCurrent();
     screen = "game";
     persist();
@@ -944,20 +884,28 @@ function renderFinish(): void {
   }
   renderShell(`
     <section class="finish" aria-labelledby="finish-title">
-      <div class="finish-light" aria-hidden="true"></div>
-      <h1 id="finish-title">Спасибо за вечер</h1>
-      <p>Напоследок каждый может назвать один момент, который ему запомнился.</p>
-      <div class="finish-people">
-        ${session.players.map((player) => `<span>${escapeHtml(player.name)}</span>`).join("")}
+      <div class="finish-jar" aria-hidden="true">
+        <div class="finish-light"></div>
+        <img src="${jarPosterUrl}" alt="" width="720" height="720" />
+        <span class="finish-note"></span>
       </div>
-      <div class="finish-actions">
-        <button class="button button-primary button-large" data-action="same-group">Сыграть ещё</button>
-        <button class="button button-secondary button-large" data-action="finish-home">На главную</button>
+      <div class="finish-copy">
+        <h1 id="finish-title">Последняя записка</h1>
+        <p class="finish-question">Что за этот вечер запомнилось больше всего?</p>
+        <p>Можно ответить по очереди или просто закончить вечер.</p>
+        <div class="finish-people" aria-label="Имена за этот вечер">
+          ${session.players.map((player) => `<span>${escapeHtml(player.name)}</span>`).join("")}
+        </div>
+        <div class="finish-actions">
+          <button class="button button-primary button-large" data-action="same-group">Сыграть ещё</button>
+          <button class="button button-secondary button-large" data-action="finish-home">На главную</button>
+        </div>
       </div>
     </section>
   `, { compactHeader: true });
   root.querySelector<HTMLElement>("[data-action='same-group']")?.addEventListener("click", () => {
     draftNames = session.players.map((player) => player.name);
+    draftMode = session.mode;
     data.session = null;
     screen = "setup";
     persist();
@@ -981,6 +929,10 @@ function isCategoryValue(value: string): value is Category {
 
 function isModeValue(value: string): value is CardMode {
   return value === "answer" || value === "perform" || value === "group";
+}
+
+function isSessionModeValue(value: string): value is SessionMode {
+  return SESSION_MODES.some((mode) => mode === value);
 }
 
 function renderEditor(): void {
@@ -1145,7 +1097,7 @@ function renderEditor(): void {
 
 function bindToolBack(): void {
   root.querySelector<HTMLElement>("[data-action='back-from-tool']")?.addEventListener("click", () => {
-    screen = returnScreen === "editor" || returnScreen === "settings" ? "welcome" : returnScreen;
+    screen = screen === "editor" ? editorReturnScreen : returnScreen;
     render();
   });
 }
@@ -1166,11 +1118,12 @@ function renderSettings(): void {
           <option value="120" ${data.preferences.timerSeconds === 120 ? "selected" : ""}>120 секунд</option>
           <option value="0" ${data.preferences.timerSeconds === 0 ? "selected" : ""}>Выключен</option>
         </select></label>
-        <label class="setting-row"><span><strong>Звуки</strong><small>Шорох бумаги, звон банки и короткие сигналы игры.</small></span><input name="sound" type="checkbox" ${data.preferences.soundEnabled ? "checked" : ""} /></label>
+        <label class="setting-row"><span><strong>Звуки</strong><small>Шорох бумаги, лёгкий звон стекла и мягкий сигнал таймера.</small></span><input name="sound" type="checkbox" ${data.preferences.soundEnabled ? "checked" : ""} /></label>
         <label class="setting-row"><span><strong>Анимации</strong><small>Банка, записки и переходы между ходами.</small></span><input name="motion" type="checkbox" ${data.preferences.motionEnabled ? "checked" : ""} /></label>
         <button class="button button-primary" type="submit">Сохранить</button>
       </form>
       <div class="data-panel">
+        <div><strong>Вопросы</strong><span>Свои карточки и скрытие встроенных</span><button class="button button-secondary" data-action="editor">Открыть колоду</button></div>
         <div><strong>История вопросов</strong><span>${data.preferences.seenCardIds.length} карточек уже использовано</span><button class="button button-secondary" data-action="reset-history">Начать колоду заново</button></div>
         <div><strong>Все локальные данные</strong><span>Имена, текущая игра, свои карточки и настройки</span><button class="button button-danger" data-action="reset-all">Удалить данные</button></div>
       </div>
@@ -1204,7 +1157,8 @@ function renderSettings(): void {
   root.querySelector<HTMLElement>("[data-action='reset-all']")?.addEventListener("click", () => {
     if (window.confirm("Удалить все локальные данные игры? Это действие нельзя отменить.")) {
       data = clearStoredData();
-      draftNames = ["", "", "", "", "", ""];
+      draftNames = ["", ""];
+      draftMode = "standard";
       screen = "welcome";
       render();
       showToast("Локальные данные удалены.");

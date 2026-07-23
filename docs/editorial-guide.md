@@ -24,6 +24,12 @@ Use recognisable details such as cities, food, languages, roads, hospitality, co
 - Phrase spiritual-history questions so that both someone raised in the truth and someone who learned it later can answer naturally.
 - Keep deeper cards personal but voluntary. They should invite a real story without demanding details about trauma, loss, family conflict, or past wrongdoing.
 
+The internal stage and category tags are editorial tools, not visible game
+chapters. The selector should blend them gradually and avoid consecutive cards
+with the same category, demanding format, deep tone, or opening word when a
+natural alternative exists. A direct spoken answer must remain possible in
+every round.
+
 ## Avoid
 
 - therapy language: abstract questions about personal growth, emotional regulation, or hidden qualities;
@@ -34,6 +40,15 @@ Use recognisable details such as cities, food, languages, roads, hospitality, co
 - jokes at the expense of a person met in the ministry;
 - invented spiritual lessons or speculative claims presented as Bible facts.
 - gender workarounds such as "сделал(а)" and singular group roles followed by "он" or "его"; rewrite the whole sentence instead.
+- inserting a saved name after a preposition that would require the program to
+  decline it; use a complete sentence or a label such as "Отвечают: Аня и Лев".
+
+## Visible interface copy
+
+The same read-aloud rules apply outside the deck. Controls should say what will
+happen in familiar words, keep options secondary, and never expose stage names
+or token-like mechanics to players. Session duration is a promise to suggest a
+natural stopping point, not a countdown that ends someone's answer.
 
 ## Quick read-aloud check
 
